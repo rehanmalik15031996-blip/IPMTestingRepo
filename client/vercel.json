@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/((?!api|static|_next|favicon.ico|manifest.json|robots.txt).*)", "destination": "/index.html" }
+  ]
+}

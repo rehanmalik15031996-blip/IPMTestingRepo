@@ -1,0 +1,15 @@
+<svg preserveAspectRatio="xMidYMid meet" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="ChartBarHorizontal" clip-path="url(#clip0_0_9)">
+<g id="Vector">
+</g>
+<path id="Vector_2" d="M4.5 20.25V3.75" stroke="#10575C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M4.5 5.25H16.5V9.75" stroke="#10575C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M4.5 9.75H21V14.25H4.5" stroke="#10575C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M13.5 14.25V18.75H4.5" stroke="#10575C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_0_9">
+<rect width="24" height="24" fill="white"/>
+</clipPath>
+</defs>
+</svg>

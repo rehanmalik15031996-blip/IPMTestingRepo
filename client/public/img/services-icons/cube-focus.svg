@@ -1,0 +1,18 @@
+<svg preserveAspectRatio="xMidYMid meet" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="CubeFocus" clip-path="url(#clip0_0_23)">
+<g id="Vector">
+</g>
+<path id="Vector_2" d="M17.25 4.5H21V8.25" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M6.75 19.5H3V15.75" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M21 15.75V19.5H17.25" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M3 8.25V4.5H6.75" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_6" d="M12 6L17.25 9V15L12 18L6.75 15V9L12 6Z" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_7" d="M6.75 9L12 12L17.25 9" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_8" d="M12 12V18" stroke="#C9A55A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_0_23">
+<rect width="24" height="24" fill="white"/>
+</clipPath>
+</defs>
+</svg>

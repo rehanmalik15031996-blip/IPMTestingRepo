@@ -1,0 +1,13 @@
+{
+  "name": "ipm-metadata-service",
+  "version": "3.2.0",
+  "description": "myIPM Property Intelligence API — Real Data First (Tavily + Claude)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "express": "^4.21.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "ipm-otp-functions",
+  "version": "1.0.0",
+  "description": "Google Cloud Functions for OTP sending and verification",
+  "main": "index.js",
+  "scripts": {
+    "deploy-send": "gcloud functions deploy sendOtp --runtime nodejs20 --trigger-http --allow-unauthenticated --region us-central1",
+    "deploy-verify": "gcloud functions deploy verifyOtp --runtime nodejs20 --trigger-http --allow-unauthenticated --region us-central1",
+    "deploy-all": "npm run deploy-send && npm run deploy-verify"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.3.0",
+    "nodemailer": "^6.9.7"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

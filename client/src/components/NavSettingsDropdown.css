@@ -1,0 +1,100 @@
+.nav-settings-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nav-settings-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.news-nav--hero .nav-settings-trigger,
+.news-nav--landing .nav-settings-trigger {
+  border-color: white;
+}
+
+.nav-settings-trigger:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: white;
+}
+
+.nav-settings-trigger i {
+  font-size: 14px;
+}
+
+.nav-settings-trigger-label {
+  white-space: nowrap;
+}
+
+.nav-settings-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border: 1px solid #eee;
+  padding: 14px 12px;
+  z-index: 1001;
+  animation: navSettingsFadeIn 0.2s ease;
+}
+
+@keyframes navSettingsFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nav-settings-section {
+  margin-bottom: 4px;
+}
+
+.nav-settings-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.nav-settings-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.nav-settings-select {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.nav-settings-select:focus {
+  outline: none;
+  border-color: #11575C;
+  background: white;
+}
+
+.nav-settings-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 10px 0;
+}

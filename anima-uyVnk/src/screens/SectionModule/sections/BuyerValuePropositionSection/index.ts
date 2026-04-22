@@ -1,0 +1,1 @@
+export { BuyerValuePropositionSection } from "./BuyerValuePropositionSection";

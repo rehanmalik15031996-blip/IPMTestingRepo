@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="xMidYMid meet" width="22" height="24" viewBox="0 0 22 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group">
+<path id="Vector" d="M17 9H5C2.79086 9 1 10.7909 1 13V19C1 21.2091 2.79086 23 5 23H17C19.2091 23 21 21.2091 21 19V13C21 10.7909 19.2091 9 17 9Z" stroke="#3FA08D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M11 5C12.1046 5 13 4.10457 13 3C13 1.89543 12.1046 1 11 1C9.89543 1 9 1.89543 9 3C9 4.10457 9.89543 5 11 5Z" stroke="#3FA08D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M11 5V9M8 17V15M14 15V17" stroke="#3FA08D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

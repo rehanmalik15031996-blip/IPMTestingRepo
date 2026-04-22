@@ -1,0 +1,389 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    @apply appearance-none bg-transparent border-0 outline-none;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+:root {
+  --celtic-85: rgba(20, 48, 31, 0.85);
+  --DM-mono-medium-font-family: "DM Mono", Helvetica;
+  --DM-mono-medium-font-size: 11.5px;
+  --DM-mono-medium-font-style: normal;
+  --DM-mono-medium-font-weight: 500;
+  --DM-mono-medium-letter-spacing: 0px;
+  --DM-mono-medium-line-height: normal;
+  --DM-mono-regular-font-family: "DM Mono", Helvetica;
+  --DM-mono-regular-font-size: 11.199999809265137px;
+  --DM-mono-regular-font-style: normal;
+  --DM-mono-regular-font-weight: 400;
+  --DM-mono-regular-letter-spacing: 0px;
+  --DM-mono-regular-line-height: normal;
+  --DM-mono-regular-strikethrough-font-family: "DM Mono", Helvetica;
+  --DM-mono-regular-strikethrough-font-size: 11.5px;
+  --DM-mono-regular-strikethrough-font-style: normal;
+  --DM-mono-regular-strikethrough-font-weight: 400;
+  --DM-mono-regular-strikethrough-letter-spacing: 0px;
+  --DM-mono-regular-strikethrough-line-height: normal;
+  --DM-mono-regular-upper-font-family: "DM Mono", Helvetica;
+  --DM-mono-regular-upper-font-size: 9px;
+  --DM-mono-regular-upper-font-style: normal;
+  --DM-mono-regular-upper-font-weight: 400;
+  --DM-mono-regular-upper-letter-spacing: 1.9800000190734863px;
+  --DM-mono-regular-upper-line-height: normal;
+  --DM-sans-medium-font-family: "DM Sans", Helvetica;
+  --DM-sans-medium-font-size: 12.5px;
+  --DM-sans-medium-font-style: normal;
+  --DM-sans-medium-font-weight: 500;
+  --DM-sans-medium-letter-spacing: 0px;
+  --DM-sans-medium-line-height: normal;
+  --DM-sans-regular-font-family: "DM Sans", Helvetica;
+  --DM-sans-regular-font-size: 13.600000381469727px;
+  --DM-sans-regular-font-style: normal;
+  --DM-sans-regular-font-weight: 400;
+  --DM-sans-regular-letter-spacing: 0px;
+  --DM-sans-regular-line-height: 23.1200008392334px;
+  --DM-sans-regular-upper-font-family: "DM Sans", Helvetica;
+  --DM-sans-regular-upper-font-size: 10px;
+  --DM-sans-regular-upper-font-style: normal;
+  --DM-sans-regular-upper-font-weight: 400;
+  --DM-sans-regular-upper-letter-spacing: 3px;
+  --DM-sans-regular-upper-line-height: normal;
+  --ecru-white-70: rgba(244, 240, 230, 0.7);
+  --heliotrope: rgba(232, 121, 249, 1);
+  --inter-regular-font-family: "Inter", Helvetica;
+  --inter-regular-font-size: 11px;
+  --inter-regular-font-style: normal;
+  --inter-regular-font-weight: 400;
+  --inter-regular-letter-spacing: 0px;
+  --inter-regular-line-height: 19.799999237060547px;
+  --ipm-black: rgba(6, 6, 6, 1);
+  --ipm-green: rgba(16, 87, 92, 1);
+  --ipm-grey: rgba(194, 195, 195, 1);
+  --ipm-light-grey: rgba(225, 225, 225, 1);
+  --ipm-orange: rgba(255, 178, 27, 1);
+  --IPM-poppins-light-copy-font-family: "Poppins", Helvetica;
+  --IPM-poppins-light-copy-font-size: 16px;
+  --IPM-poppins-light-copy-font-style: normal;
+  --IPM-poppins-light-copy-font-weight: 300;
+  --IPM-poppins-light-copy-letter-spacing: 0px;
+  --IPM-poppins-light-copy-line-height: normal;
+  --IPM-poppins-light-heading-font-family: "Poppins", Helvetica;
+  --IPM-poppins-light-heading-font-size: 50px;
+  --IPM-poppins-light-heading-font-style: normal;
+  --IPM-poppins-light-heading-font-weight: 200;
+  --IPM-poppins-light-heading-letter-spacing: 0px;
+  --IPM-poppins-light-heading-line-height: normal;
+  --IPM-poppins-light-subheading-font-family: "Poppins", Helvetica;
+  --IPM-poppins-light-subheading-font-size: 24px;
+  --IPM-poppins-light-subheading-font-style: normal;
+  --IPM-poppins-light-subheading-font-weight: 300;
+  --IPM-poppins-light-subheading-letter-spacing: 0px;
+  --IPM-poppins-light-subheading-line-height: normal;
+  --IPM-poppins-semibold-copy-font-family: "Poppins", Helvetica;
+  --IPM-poppins-semibold-copy-font-size: 16px;
+  --IPM-poppins-semibold-copy-font-style: normal;
+  --IPM-poppins-semibold-copy-font-weight: 600;
+  --IPM-poppins-semibold-copy-letter-spacing: 0px;
+  --IPM-poppins-semibold-copy-line-height: normal;
+  --IPM-poppins-semibold-heading-font-family: "Poppins", Helvetica;
+  --IPM-poppins-semibold-heading-font-size: 50px;
+  --IPM-poppins-semibold-heading-font-style: normal;
+  --IPM-poppins-semibold-heading-font-weight: 600;
+  --IPM-poppins-semibold-heading-letter-spacing: 0px;
+  --IPM-poppins-semibold-heading-line-height: normal;
+  --IPM-poppins-semibold-subheading-font-family: "Poppins", Helvetica;
+  --IPM-poppins-semibold-subheading-font-size: 24px;
+  --IPM-poppins-semibold-subheading-font-style: normal;
+  --IPM-poppins-semibold-subheading-font-weight: 600;
+  --IPM-poppins-semibold-subheading-letter-spacing: 0px;
+  --IPM-poppins-semibold-subheading-line-height: normal;
+  --ipm-red: rgba(164, 38, 14, 1);
+  --ipm-yellow: rgba(255, 200, 2, 1);
+  --jost-bold-font-family: "Jost", Helvetica;
+  --jost-bold-font-size: 13px;
+  --jost-bold-font-style: normal;
+  --jost-bold-font-weight: 700;
+  --jost-bold-letter-spacing: 0px;
+  --jost-bold-line-height: 20.799999237060547px;
+  --jost-bold-upper-font-family: "Jost", Helvetica;
+  --jost-bold-upper-font-size: 9.5px;
+  --jost-bold-upper-font-style: normal;
+  --jost-bold-upper-font-weight: 700;
+  --jost-bold-upper-letter-spacing: 1px;
+  --jost-bold-upper-line-height: 15.199999809265137px;
+  --jost-italic-font-family: "Jost", Helvetica;
+  --jost-italic-font-size: 14px;
+  --jost-italic-font-style: italic;
+  --jost-italic-font-weight: 400;
+  --jost-italic-letter-spacing: 0px;
+  --jost-italic-line-height: 22.399999618530273px;
+  --jost-light-font-family: "Jost", Helvetica;
+  --jost-light-font-size: 13.5px;
+  --jost-light-font-style: normal;
+  --jost-light-font-weight: 300;
+  --jost-light-letter-spacing: 0.8999999761581421px;
+  --jost-light-line-height: normal;
+  --jost-medium-font-family: "Jost", Helvetica;
+  --jost-medium-font-size: 12px;
+  --jost-medium-font-style: normal;
+  --jost-medium-font-weight: 500;
+  --jost-medium-italic-font-family: "Jost", Helvetica;
+  --jost-medium-italic-font-size: 14px;
+  --jost-medium-italic-font-style: italic;
+  --jost-medium-italic-font-weight: 500;
+  --jost-medium-italic-letter-spacing: 0px;
+  --jost-medium-italic-line-height: 22.399999618530273px;
+  --jost-medium-letter-spacing: 0px;
+  --jost-medium-line-height: normal;
+  --jost-regular-font-family: "Jost", Helvetica;
+  --jost-regular-font-size: 28px;
+  --jost-regular-font-style: normal;
+  --jost-regular-font-weight: 400;
+  --jost-regular-letter-spacing: 0px;
+  --jost-regular-line-height: 44.79999923706055px;
+  --jost-regular-upper-font-family: "Jost", Helvetica;
+  --jost-regular-upper-font-size: 9px;
+  --jost-regular-upper-font-style: normal;
+  --jost-regular-upper-font-weight: 400;
+  --jost-regular-upper-letter-spacing: 0.800000011920929px;
+  --jost-regular-upper-line-height: 14.399999618530273px;
+  --jost-semibold-font-family: "Jost", Helvetica;
+  --jost-semibold-font-size: 22px;
+  --jost-semibold-font-style: normal;
+  --jost-semibold-font-weight: 600;
+  --jost-semibold-letter-spacing: 0px;
+  --jost-semibold-line-height: 22px;
+  --jost-semibold-upper-font-family: "Jost", Helvetica;
+  --jost-semibold-upper-font-size: 12px;
+  --jost-semibold-upper-font-style: normal;
+  --jost-semibold-upper-font-weight: 600;
+  --jost-semibold-upper-letter-spacing: 1.5px;
+  --jost-semibold-upper-line-height: 19.200000762939453px;
+  --paradiso: rgba(45, 122, 106, 1);
+  --playfair-display-bold-font-family: "Playfair Display", Helvetica;
+  --playfair-display-bold-font-size: 25.600000381469727px;
+  --playfair-display-bold-font-style: normal;
+  --playfair-display-bold-font-weight: 700;
+  --playfair-display-bold-letter-spacing: 0px;
+  --playfair-display-bold-line-height: 25.600000381469727px;
+  --playfair-display-italic-font-family: "Playfair Display", Helvetica;
+  --playfair-display-italic-font-size: 14px;
+  --playfair-display-italic-font-style: italic;
+  --playfair-display-italic-font-weight: 400;
+  --playfair-display-italic-letter-spacing: 0px;
+  --playfair-display-italic-line-height: 22.399999618530273px;
+  --playfair-display-regular-font-family: "Playfair Display", Helvetica;
+  --playfair-display-regular-font-size: 72px;
+  --playfair-display-regular-font-style: normal;
+  --playfair-display-regular-font-weight: 400;
+  --playfair-display-regular-letter-spacing: -3px;
+  --playfair-display-regular-line-height: 72px;
+  --playfair-display-semibold-font-family: "Playfair Display", Helvetica;
+  --playfair-display-semibold-font-size: 22.399999618530273px;
+  --playfair-display-semibold-font-style: normal;
+  --playfair-display-semibold-font-weight: 600;
+  --playfair-display-semibold-letter-spacing: 0px;
+  --playfair-display-semibold-line-height: 22.399999618530273px;
+  --semantic-blockquote-font-family: "Playfair Display", Helvetica;
+  --semantic-blockquote-font-size: 38px;
+  --semantic-blockquote-font-style: italic;
+  --semantic-blockquote-font-weight: 400;
+  --semantic-blockquote-letter-spacing: 0px;
+  --semantic-blockquote-line-height: 50.15999984741211px;
+  --semantic-button-font-family: "Jost", Helvetica;
+  --semantic-button-font-size: 14.5px;
+  --semantic-button-font-style: normal;
+  --semantic-button-font-weight: 600;
+  --semantic-button-letter-spacing: 0px;
+  --semantic-button-line-height: normal;
+  --semantic-cell-upper-font-family: "Jost", Helvetica;
+  --semantic-cell-upper-font-size: 10.5px;
+  --semantic-cell-upper-font-style: normal;
+  --semantic-cell-upper-font-weight: 600;
+  --semantic-cell-upper-letter-spacing: 0.5px;
+  --semantic-cell-upper-line-height: normal;
+  --semantic-data-font-family: "Jost", Helvetica;
+  --semantic-data-font-size: 13px;
+  --semantic-data-font-style: normal;
+  --semantic-data-font-weight: 700;
+  --semantic-data-letter-spacing: 0px;
+  --semantic-data-line-height: normal;
+  --semantic-emphasis-font-family: "Playfair Display", Helvetica;
+  --semantic-emphasis-font-size: 52px;
+  --semantic-emphasis-font-style: italic;
+  --semantic-emphasis-font-weight: 400;
+  --semantic-emphasis-letter-spacing: 0px;
+  --semantic-emphasis-line-height: 55.119998931884766px;
+  --semantic-heading-1-font-family: "Playfair Display", Helvetica;
+  --semantic-heading-1-font-size: 68px;
+  --semantic-heading-1-font-style: italic;
+  --semantic-heading-1-font-weight: 400;
+  --semantic-heading-1-letter-spacing: 0px;
+  --semantic-heading-1-line-height: 70px;
+  --semantic-heading-2-font-family: "Playfair Display", Helvetica;
+  --semantic-heading-2-font-size: 54px;
+  --semantic-heading-2-font-style: italic;
+  --semantic-heading-2-font-weight: 400;
+  --semantic-heading-2-letter-spacing: 0px;
+  --semantic-heading-2-line-height: 57.2400016784668px;
+  --semantic-heading-3-font-family: "Playfair Display", Helvetica;
+  --semantic-heading-3-font-size: 35.20000076293945px;
+  --semantic-heading-3-font-style: italic;
+  --semantic-heading-3-font-weight: 400;
+  --semantic-heading-3-letter-spacing: 0px;
+  --semantic-heading-3-line-height: 42.2400016784668px;
+  --semantic-input-font-family: "Jost", Helvetica;
+  --semantic-input-font-size: 14px;
+  --semantic-input-font-style: normal;
+  --semantic-input-font-weight: 400;
+  --semantic-input-letter-spacing: 0px;
+  --semantic-input-line-height: normal;
+  --semantic-item-font-family: "Jost", Helvetica;
+  --semantic-item-font-size: 14px;
+  --semantic-item-font-style: normal;
+  --semantic-item-font-weight: 400;
+  --semantic-item-letter-spacing: 0px;
+  --semantic-item-line-height: 22.399999618530273px;
+  --semantic-link-font-family: "Playfair Display", Helvetica;
+  --semantic-link-font-size: 22px;
+  --semantic-link-font-style: normal;
+  --semantic-link-font-weight: 400;
+  --semantic-link-letter-spacing: 0.5px;
+  --semantic-link-line-height: 35.20000076293945px;
+  --semantic-poppin-font-family: "Playfair Display", Helvetica;
+  --semantic-poppin-font-size: 50px;
+  --semantic-poppin-font-style: normal;
+  --semantic-poppin-font-weight: 400;
+  --semantic-poppin-letter-spacing: 0px;
+  --semantic-poppin-line-height: 53.5px;
+  --semantic-strong-upper-font-family: "DM Mono", Helvetica;
+  --semantic-strong-upper-font-size: 10.899999618530273px;
+  --semantic-strong-upper-font-style: normal;
+  --semantic-strong-upper-font-weight: 500;
+  --semantic-strong-upper-letter-spacing: 1.5230000019073486px;
+  --semantic-strong-upper-line-height: normal;
+  --white-rock-80: rgba(240, 235, 224, 0.8);
+}
+
+:root {
+  --animate-spin: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 1s var(--animation-delay, 0s) ease forwards;
+}
+
+.animate-marquee {
+  animation: marquee var(--duration) infinite linear;
+}
+
+.animate-marquee-vertical {
+  animation: marquee-vertical var(--duration) linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 8s infinite;
+}
+
+.animate-spin {
+  animation: var(--animate-spin);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes image-glow {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.74, 0.25, 0.76, 1);
+  }
+
+  10% {
+    opacity: 0.7;
+    animation-timing-function: cubic-bezier(0.12, 0.01, 0.08, 0.99);
+  }
+
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  90%,
+  to {
+    background-position: calc(-100% - var(--shimmer-width)) 0;
+  }
+
+  30%,
+  60% {
+    background-position: calc(100% + var(--shimmer-width)) 0;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0);
+  }
+
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+  }
+}
+
+@keyframes marquee-vertical {
+  0% {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+  }
+}

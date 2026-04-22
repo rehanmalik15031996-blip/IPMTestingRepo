@@ -1,0 +1,10 @@
+<svg width="1920" height="583" viewBox="0 0 1920 583" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+<rect width="1920" height="583" fill="url(#maskGrad)"/>
+<defs>
+<radialGradient id="maskGrad" cx="0.5" cy="0.5" r="0.7" gradientUnits="objectBoundingBox">
+<stop offset="0" stop-color="white" stop-opacity="1"/>
+<stop offset="0.7" stop-color="white" stop-opacity="0.3"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

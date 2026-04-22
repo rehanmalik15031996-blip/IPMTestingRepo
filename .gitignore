@@ -1,0 +1,54 @@
+node_modules/
+env
+env (1)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+**/.env
+**/.env.local
+.DS_Store
+.vercel
+dist
+build
+*.log
+
+# Python virtual environments
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+
+# Git tokens and credentials - NEVER commit
+git token*.txt
+*token*.txt
+credentials*.json
+*.pem
+*.key
+
+# Python virtual environments
+.venv/
+**/.venv/
+__pycache__/
+
+# Document processing folder
+document processing/
+
+# Test files
+test-*.js
+test-*.html
+
+# Temporary scripts
+populate-*.js
+setup-*.ps1
+
+# Cursor IDE / agent artifacts
+agent-transcripts/
+terminals/
+mcps/
+agent-tools/
+
+# Documentation (keep only essential)
+# Remove temporary/duplicate docs if needed

@@ -1,0 +1,1 @@
+export { FooterLegalNoticeSection } from "./FooterLegalNoticeSection";

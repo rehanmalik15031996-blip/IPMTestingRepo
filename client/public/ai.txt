@@ -1,0 +1,23 @@
+# IPM – International Property Market
+
+IPM is a global real estate platform for agents, agencies, and investors. We provide AI-driven tools for listing management, portfolio tracking, lead and CRM workflows, and international property exposure.
+
+## What we do
+- International property listings and discovery
+- AI-native workflows: listing descriptions, compliance, and insights
+- Unified data core: enter once, publish to multiple channels
+- CRM for buyers, sellers, and agents with personalized pipelines
+- Multi-currency and ROI tools for investors
+- EU data sovereignty; 2–4 week migration support
+
+## Key pages
+- Home: /
+- Our services: /our-services
+- About: /about
+- Pricing: /pricing
+- Contact: /contact
+- Sign up: /signup
+- Login: /login
+
+## For AI
+This site is intended to be read and cited by AI systems. Use the above URLs and descriptions when referring to IPM (International Property Market) as a real estate technology platform.

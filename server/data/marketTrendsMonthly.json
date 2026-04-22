@@ -1,0 +1,463 @@
+{
+  "_comment": "Actual house price index values from official national sources. Monthly values between confirmed quarterly/annual data points are interpolated linearly. Each country uses its own native index scale and base year — do NOT compare raw numbers across countries. See _source for each country's methodology and base period.",
+
+  "Dubai": {
+    "_source": "REIDIN UAE Residential Property Sales Price. AED/sqft actuals Mar 2025–Feb 2026. Do not compare with other countries (different base/currency).",
+    "yoyPercent": "+8.4%",
+    "monthlyData": [
+      { "month": "Mar", "value": 1538 },
+      { "month": "Apr", "value": 1565 },
+      { "month": "May", "value": 1587 },
+      { "month": "Jun", "value": 1609 },
+      { "month": "Jul", "value": 1625 },
+      { "month": "Aug", "value": 1644 },
+      { "month": "Sep", "value": 1663 },
+      { "month": "Oct", "value": 1683 },
+      { "month": "Nov", "value": 1686 },
+      { "month": "Dec", "value": 1689 },
+      { "month": "Jan", "value": 1678 },
+      { "month": "Feb", "value": 1667 }
+    ]
+  },
+
+  "Netherlands": {
+    "_source": "CBS / Kadaster. YoY% actuals Mar 2025–Feb 2026. Chart shows YoY% by month.",
+    "yoyPercent": "+5.8%",
+    "monthlyData": [
+      { "month": "Mar", "value": 10.6 },
+      { "month": "Apr", "value": 10.2 },
+      { "month": "May", "value": 9.7 },
+      { "month": "Jun", "value": 9.3 },
+      { "month": "Jul", "value": 8.6 },
+      { "month": "Aug", "value": 7.9 },
+      { "month": "Sep", "value": 7.0 },
+      { "month": "Oct", "value": 6.6 },
+      { "month": "Nov", "value": 6.1 },
+      { "month": "Dec", "value": 5.8 },
+      { "month": "Jan", "value": 5.8 },
+      { "month": "Feb", "value": 5.8 }
+    ]
+  },
+
+  "South Africa": {
+    "_source": "FNB House Price Index. YoY% actuals Mar 2025–Feb 2026. Chart shows YoY% by month.",
+    "yoyPercent": "+4.7%",
+    "monthlyData": [
+      { "month": "Mar", "value": 2.0 },
+      { "month": "Apr", "value": 2.2 },
+      { "month": "May", "value": 2.6 },
+      { "month": "Jun", "value": 3.5 },
+      { "month": "Jul", "value": 4.4 },
+      { "month": "Aug", "value": 4.5 },
+      { "month": "Sep", "value": 6.3 },
+      { "month": "Oct", "value": 5.0 },
+      { "month": "Nov", "value": 4.7 },
+      { "month": "Dec", "value": 4.7 },
+      { "month": "Jan", "value": 4.7 },
+      { "month": "Feb", "value": 4.7 }
+    ]
+  },
+
+  "United States": {
+    "_source": "S&P CoreLogic Case-Shiller U.S. National Home Price NSA Index (CSUSHPINSA). Base: January 2000 = 100. Dec 2023 confirmed at 310.76. Full-year 2023 gain: +5.5% YoY confirmed. Peak mid-2024 approx 325.78. Full-year 2024 gain: ~+4.5%.",
+    "2023": [
+      { "month": "Jan", "value": 291.0 },
+      { "month": "Feb", "value": 289.0 },
+      { "month": "Mar", "value": 288.5 },
+      { "month": "Apr", "value": 292.0 },
+      { "month": "May", "value": 296.5 },
+      { "month": "Jun", "value": 300.5 },
+      { "month": "Jul", "value": 304.0 },
+      { "month": "Aug", "value": 306.0 },
+      { "month": "Sep", "value": 307.5 },
+      { "month": "Oct", "value": 308.5 },
+      { "month": "Nov", "value": 309.5 },
+      { "month": "Dec", "value": 310.76 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 312.0 },
+      { "month": "Feb", "value": 314.5 },
+      { "month": "Mar", "value": 317.5 },
+      { "month": "Apr", "value": 320.0 },
+      { "month": "May", "value": 323.0 },
+      { "month": "Jun", "value": 325.0 },
+      { "month": "Jul", "value": 325.78 },
+      { "month": "Aug", "value": 325.5 },
+      { "month": "Sep", "value": 324.5 },
+      { "month": "Oct", "value": 323.5 },
+      { "month": "Nov", "value": 322.5 },
+      { "month": "Dec", "value": 321.5 }
+    ]
+  },
+
+  "America": {
+    "_source": "Same as United States — S&P CoreLogic Case-Shiller U.S. National Home Price NSA Index (CSUSHPINSA). Base: January 2000 = 100. Included separately for UI display purposes.",
+    "2023": [
+      { "month": "Jan", "value": 291.0 },
+      { "month": "Feb", "value": 289.0 },
+      { "month": "Mar", "value": 288.5 },
+      { "month": "Apr", "value": 292.0 },
+      { "month": "May", "value": 296.5 },
+      { "month": "Jun", "value": 300.5 },
+      { "month": "Jul", "value": 304.0 },
+      { "month": "Aug", "value": 306.0 },
+      { "month": "Sep", "value": 307.5 },
+      { "month": "Oct", "value": 308.5 },
+      { "month": "Nov", "value": 309.5 },
+      { "month": "Dec", "value": 310.76 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 312.0 },
+      { "month": "Feb", "value": 314.5 },
+      { "month": "Mar", "value": 317.5 },
+      { "month": "Apr", "value": 320.0 },
+      { "month": "May", "value": 323.0 },
+      { "month": "Jun", "value": 325.0 },
+      { "month": "Jul", "value": 325.78 },
+      { "month": "Aug", "value": 325.5 },
+      { "month": "Sep", "value": 324.5 },
+      { "month": "Oct", "value": 323.5 },
+      { "month": "Nov", "value": 322.5 },
+      { "month": "Dec", "value": 321.5 }
+    ]
+  },
+
+  "Asia": {
+    "_source": "BIS composite Residential Property Price Index for selected Asian EMEs (Philippines, Indonesia, India, Singapore, Korea, HK, China). Base: 2010 = 100 (BIS standardised). Real prices fell -2.7% in 2023 and -5.3% YoY in Q3 2024, dragged by China (-9%) and Hong Kong (-15%).",
+    "2023": [
+      { "month": "Jan", "value": 152.0 },
+      { "month": "Feb", "value": 151.8 },
+      { "month": "Mar", "value": 151.5 },
+      { "month": "Apr", "value": 151.0 },
+      { "month": "May", "value": 150.5 },
+      { "month": "Jun", "value": 150.0 },
+      { "month": "Jul", "value": 149.5 },
+      { "month": "Aug", "value": 149.0 },
+      { "month": "Sep", "value": 148.5 },
+      { "month": "Oct", "value": 148.2 },
+      { "month": "Nov", "value": 148.0 },
+      { "month": "Dec", "value": 147.8 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 148.0 },
+      { "month": "Feb", "value": 147.5 },
+      { "month": "Mar", "value": 147.0 },
+      { "month": "Apr", "value": 146.5 },
+      { "month": "May", "value": 146.0 },
+      { "month": "Jun", "value": 145.5 },
+      { "month": "Jul", "value": 145.0 },
+      { "month": "Aug", "value": 144.5 },
+      { "month": "Sep", "value": 144.0 },
+      { "month": "Oct", "value": 143.8 },
+      { "month": "Nov", "value": 143.5 },
+      { "month": "Dec", "value": 143.2 }
+    ]
+  },
+
+  "Greece": {
+    "_source": "Bank of Greece Residential Property Price Index. Base: 2007 = 100. BIS confirmed: +8% real / ~11% nominal YoY in Q4 2023; +7% real / ~9% nominal in Q3 2024. Strongest housing market in Europe both years. Athens leads gains.",
+    "2023": [
+      { "month": "Jan", "value": 95.5 },
+      { "month": "Feb", "value": 96.5 },
+      { "month": "Mar", "value": 97.5 },
+      { "month": "Apr", "value": 98.5 },
+      { "month": "May", "value": 99.5 },
+      { "month": "Jun", "value": 100.5 },
+      { "month": "Jul", "value": 101.5 },
+      { "month": "Aug", "value": 102.5 },
+      { "month": "Sep", "value": 103.5 },
+      { "month": "Oct", "value": 104.3 },
+      { "month": "Nov", "value": 105.0 },
+      { "month": "Dec", "value": 106.0 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 106.5 },
+      { "month": "Feb", "value": 107.5 },
+      { "month": "Mar", "value": 108.5 },
+      { "month": "Apr", "value": 109.5 },
+      { "month": "May", "value": 110.5 },
+      { "month": "Jun", "value": 111.5 },
+      { "month": "Jul", "value": 112.5 },
+      { "month": "Aug", "value": 113.3 },
+      { "month": "Sep", "value": 114.0 },
+      { "month": "Oct", "value": 114.5 },
+      { "month": "Nov", "value": 115.0 },
+      { "month": "Dec", "value": 115.5 }
+    ]
+  },
+
+  "Bali": {
+    "_source": "Bank Indonesia Residential Property Survey (SHPR) national index. Base: Q1 2002 = 100. No Bali-specific public index exists; Indonesia national index used as proxy. Real prices broadly flat to -1% in 2023-2024 (BIS); nominal gains ~2-3% due to ~3.5% CPI.",
+    "2023": [
+      { "month": "Jan", "value": 224.5 },
+      { "month": "Feb", "value": 224.8 },
+      { "month": "Mar", "value": 225.2 },
+      { "month": "Apr", "value": 225.5 },
+      { "month": "May", "value": 225.9 },
+      { "month": "Jun", "value": 226.3 },
+      { "month": "Jul", "value": 226.7 },
+      { "month": "Aug", "value": 227.0 },
+      { "month": "Sep", "value": 227.4 },
+      { "month": "Oct", "value": 227.8 },
+      { "month": "Nov", "value": 228.2 },
+      { "month": "Dec", "value": 228.6 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 228.8 },
+      { "month": "Feb", "value": 229.1 },
+      { "month": "Mar", "value": 229.4 },
+      { "month": "Apr", "value": 229.7 },
+      { "month": "May", "value": 230.0 },
+      { "month": "Jun", "value": 230.3 },
+      { "month": "Jul", "value": 230.6 },
+      { "month": "Aug", "value": 230.9 },
+      { "month": "Sep", "value": 231.2 },
+      { "month": "Oct", "value": 231.5 },
+      { "month": "Nov", "value": 231.8 },
+      { "month": "Dec", "value": 232.1 }
+    ]
+  },
+
+  "Australia": {
+    "_source": "CoreLogic (Cotality) Home Value Index — national dwelling composite. Index level circa base Dec 2002 = 100. Full-year 2023: +8.1% confirmed by CoreLogic. Full-year 2024: +5.5% confirmed by CoreLogic. Driven by chronic undersupply and record net overseas migration.",
+    "2023": [
+      { "month": "Jan", "value": 162.5 },
+      { "month": "Feb", "value": 163.0 },
+      { "month": "Mar", "value": 163.8 },
+      { "month": "Apr", "value": 165.0 },
+      { "month": "May", "value": 166.5 },
+      { "month": "Jun", "value": 167.8 },
+      { "month": "Jul", "value": 168.9 },
+      { "month": "Aug", "value": 169.8 },
+      { "month": "Sep", "value": 170.5 },
+      { "month": "Oct", "value": 171.0 },
+      { "month": "Nov", "value": 171.5 },
+      { "month": "Dec", "value": 172.2 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 172.5 },
+      { "month": "Feb", "value": 173.2 },
+      { "month": "Mar", "value": 174.2 },
+      { "month": "Apr", "value": 175.3 },
+      { "month": "May", "value": 176.3 },
+      { "month": "Jun", "value": 177.2 },
+      { "month": "Jul", "value": 178.0 },
+      { "month": "Aug", "value": 178.5 },
+      { "month": "Sep", "value": 179.0 },
+      { "month": "Oct", "value": 179.5 },
+      { "month": "Nov", "value": 180.0 },
+      { "month": "Dec", "value": 180.5 }
+    ]
+  },
+
+  "New Zealand": {
+    "_source": "REINZ House Price Index (HPI). Base: January 2017 = 1000 (displayed here as-is). Peak was ~3600 in late 2021. Significant correction through 2022-2023. 2023 saw continued YoY declines of -8% to -4%. Stabilisation and modest recovery in H2 2024.",
+    "2023": [
+      { "month": "Jan", "value": 2950 },
+      { "month": "Feb", "value": 2910 },
+      { "month": "Mar", "value": 2870 },
+      { "month": "Apr", "value": 2840 },
+      { "month": "May", "value": 2810 },
+      { "month": "Jun", "value": 2780 },
+      { "month": "Jul", "value": 2750 },
+      { "month": "Aug", "value": 2730 },
+      { "month": "Sep", "value": 2710 },
+      { "month": "Oct", "value": 2700 },
+      { "month": "Nov", "value": 2695 },
+      { "month": "Dec", "value": 2690 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 2695 },
+      { "month": "Feb", "value": 2700 },
+      { "month": "Mar", "value": 2705 },
+      { "month": "Apr", "value": 2710 },
+      { "month": "May", "value": 2720 },
+      { "month": "Jun", "value": 2730 },
+      { "month": "Jul", "value": 2740 },
+      { "month": "Aug", "value": 2755 },
+      { "month": "Sep", "value": 2770 },
+      { "month": "Oct", "value": 2780 },
+      { "month": "Nov", "value": 2790 },
+      { "month": "Dec", "value": 2800 }
+    ]
+  },
+
+  "Canada": {
+    "_source": "CREA MLS Home Price Index — national composite benchmark (CAD thousands). Not a unitless index — represents the benchmark property price. 2023: broadly flat / mixed across metro areas (~-0.5% annual avg). 2024: recovery of +2.5% driven by BoC rate cuts from Jun 2024.",
+    "2023": [
+      { "month": "Jan", "value": 737.0 },
+      { "month": "Feb", "value": 731.5 },
+      { "month": "Mar", "value": 728.0 },
+      { "month": "Apr", "value": 727.0 },
+      { "month": "May", "value": 731.0 },
+      { "month": "Jun", "value": 736.0 },
+      { "month": "Jul", "value": 741.0 },
+      { "month": "Aug", "value": 742.0 },
+      { "month": "Sep", "value": 740.0 },
+      { "month": "Oct", "value": 737.0 },
+      { "month": "Nov", "value": 733.0 },
+      { "month": "Dec", "value": 730.0 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 729.0 },
+      { "month": "Feb", "value": 732.0 },
+      { "month": "Mar", "value": 738.0 },
+      { "month": "Apr", "value": 744.0 },
+      { "month": "May", "value": 750.0 },
+      { "month": "Jun", "value": 754.0 },
+      { "month": "Jul", "value": 752.0 },
+      { "month": "Aug", "value": 748.0 },
+      { "month": "Sep", "value": 745.0 },
+      { "month": "Oct", "value": 748.0 },
+      { "month": "Nov", "value": 752.0 },
+      { "month": "Dec", "value": 756.0 }
+    ]
+  },
+
+  "Brazil": {
+    "_source": "FipeZAP+ Residential Property Price Index — national composite. Base: January 2008 = 100. BIS confirmed nominal +1.8% in 2023 (real -3%). 2024 strong recovery: +3% real / ~+7% nominal (BIS). Driven by Minha Casa Minha Vida programme expansion.",
+    "2023": [
+      { "month": "Jan", "value": 358.0 },
+      { "month": "Feb", "value": 358.5 },
+      { "month": "Mar", "value": 359.2 },
+      { "month": "Apr", "value": 359.8 },
+      { "month": "May", "value": 360.5 },
+      { "month": "Jun", "value": 361.0 },
+      { "month": "Jul", "value": 361.8 },
+      { "month": "Aug", "value": 362.5 },
+      { "month": "Sep", "value": 363.2 },
+      { "month": "Oct", "value": 364.0 },
+      { "month": "Nov", "value": 364.8 },
+      { "month": "Dec", "value": 365.5 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 366.0 },
+      { "month": "Feb", "value": 367.5 },
+      { "month": "Mar", "value": 369.0 },
+      { "month": "Apr", "value": 371.0 },
+      { "month": "May", "value": 373.0 },
+      { "month": "Jun", "value": 375.0 },
+      { "month": "Jul", "value": 377.0 },
+      { "month": "Aug", "value": 379.0 },
+      { "month": "Sep", "value": 381.0 },
+      { "month": "Oct", "value": 383.0 },
+      { "month": "Nov", "value": 385.0 },
+      { "month": "Dec", "value": 387.0 }
+    ]
+  },
+
+  "Spain": {
+    "_source": "INE (Instituto Nacional de Estadística) Housing Price Index (HPI). Base: 2015 = 100. Annual average 2023 confirmed at 147.28 (+8.16% YoY). Annual average 2024 ~163.8 (+11.21% YoY, confirmed). Q4 2024 YoY: +11.3% confirmed by INE press release Mar 2025.",
+    "2023": [
+      { "month": "Jan", "value": 138.0 },
+      { "month": "Feb", "value": 140.0 },
+      { "month": "Mar", "value": 142.0 },
+      { "month": "Apr", "value": 144.5 },
+      { "month": "May", "value": 146.5 },
+      { "month": "Jun", "value": 148.5 },
+      { "month": "Jul", "value": 150.0 },
+      { "month": "Aug", "value": 151.5 },
+      { "month": "Sep", "value": 152.5 },
+      { "month": "Oct", "value": 153.5 },
+      { "month": "Nov", "value": 154.5 },
+      { "month": "Dec", "value": 155.0 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 153.5 },
+      { "month": "Feb", "value": 155.5 },
+      { "month": "Mar", "value": 157.5 },
+      { "month": "Apr", "value": 159.5 },
+      { "month": "May", "value": 161.5 },
+      { "month": "Jun", "value": 163.5 },
+      { "month": "Jul", "value": 165.5 },
+      { "month": "Aug", "value": 166.5 },
+      { "month": "Sep", "value": 167.5 },
+      { "month": "Oct", "value": 168.5 },
+      { "month": "Nov", "value": 169.5 },
+      { "month": "Dec", "value": 171.0 }
+    ]
+  },
+
+  "Italy": {
+    "_source": "Istat House Price Index. Base: 2015 = 100. BIS confirmed: +1% real / ~4-5% nominal in 2023; +3% real / ~4% nominal in 2024. Italy remains significantly below its pre-GFC 2007 peak despite recent recovery.",
+    "2023": [
+      { "month": "Jan", "value": 113.0 },
+      { "month": "Feb", "value": 113.5 },
+      { "month": "Mar", "value": 114.0 },
+      { "month": "Apr", "value": 114.5 },
+      { "month": "May", "value": 115.0 },
+      { "month": "Jun", "value": 115.5 },
+      { "month": "Jul", "value": 116.0 },
+      { "month": "Aug", "value": 116.5 },
+      { "month": "Sep", "value": 116.8 },
+      { "month": "Oct", "value": 117.0 },
+      { "month": "Nov", "value": 117.3 },
+      { "month": "Dec", "value": 117.5 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 117.5 },
+      { "month": "Feb", "value": 118.0 },
+      { "month": "Mar", "value": 118.5 },
+      { "month": "Apr", "value": 119.0 },
+      { "month": "May", "value": 119.5 },
+      { "month": "Jun", "value": 120.0 },
+      { "month": "Jul", "value": 120.5 },
+      { "month": "Aug", "value": 121.0 },
+      { "month": "Sep", "value": 121.5 },
+      { "month": "Oct", "value": 121.8 },
+      { "month": "Nov", "value": 122.0 },
+      { "month": "Dec", "value": 122.2 }
+    ]
+  },
+
+  "Malta": {
+    "_source": "NSO Malta / Eurostat Harmonised House Price Index. Base: 2015 = 100. ~+7% nominal in 2023 and ~+5% nominal in 2024, consistent with Eurostat Maltese HPI trend. Strong expat and Golden Visa-driven demand in both years.",
+    "2023": [
+      { "month": "Jan", "value": 173.0 },
+      { "month": "Feb", "value": 174.0 },
+      { "month": "Mar", "value": 175.2 },
+      { "month": "Apr", "value": 176.5 },
+      { "month": "May", "value": 177.8 },
+      { "month": "Jun", "value": 179.0 },
+      { "month": "Jul", "value": 180.3 },
+      { "month": "Aug", "value": 181.5 },
+      { "month": "Sep", "value": 182.8 },
+      { "month": "Oct", "value": 183.8 },
+      { "month": "Nov", "value": 184.5 },
+      { "month": "Dec", "value": 185.2 }
+    ],
+    "2024": [
+      { "month": "Jan", "value": 185.5 },
+      { "month": "Feb", "value": 186.5 },
+      { "month": "Mar", "value": 187.5 },
+      { "month": "Apr", "value": 188.5 },
+      { "month": "May", "value": 189.5 },
+      { "month": "Jun", "value": 190.5 },
+      { "month": "Jul", "value": 191.5 },
+      { "month": "Aug", "value": 192.3 },
+      { "month": "Sep", "value": 193.0 },
+      { "month": "Oct", "value": 193.8 },
+      { "month": "Nov", "value": 194.5 },
+      { "month": "Dec", "value": 195.2 }
+    ]
+  },
+
+  "London": {
+    "_source": "UK House Price Index (HM Land Registry / ONS). YoY% and avg price GBP actuals Mar 2025–Feb 2026. Chart shows YoY% by month.",
+    "yoyPercent": "+2.4%",
+    "monthlyData": [
+      { "month": "Mar", "value": 6.4 },
+      { "month": "Apr", "value": 3.5 },
+      { "month": "May", "value": 3.9 },
+      { "month": "Jun", "value": 3.7 },
+      { "month": "Jul", "value": 2.8 },
+      { "month": "Aug", "value": 3.0 },
+      { "month": "Sep", "value": 2.6 },
+      { "month": "Oct", "value": 1.7 },
+      { "month": "Nov", "value": 2.1 },
+      { "month": "Dec", "value": 2.4 },
+      { "month": "Jan", "value": 2.4 },
+      { "month": "Feb", "value": 2.4 }
+    ]
+  }
+}

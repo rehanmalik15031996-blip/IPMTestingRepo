@@ -1,0 +1,33 @@
+---
+description: Keep agency agent and sole agent (and agency) behavior in sync for leads/CRM and similar flows
+globs: api/**/*lead*.js,api/users/*.js,server/routes/users.js,client/src/pages/CRM.js,client/src/pages/Dashboard.js,client/src/components/AddNewLeadModal.js,client/src/components/LeadDetailPopup.js,client/src/components/EditLeadModal.js
+alwaysApply: false
+---
+
+# Agency vs sole agent consistency
+
+When changing lead/CRM or any feature used by both **agency agents** and **sole (independent) agents** (or **agencies**), keep behavior identical. Only the **data location** differs.
+
+## Rule: one behavior, two data sources
+
+- **Sole agent:** data on the user doc (e.g. `user.agentStats.crmLeads`).
+- **Agency agent:** data on the **agency** doc (e.g. `agency.agencyStats.crmLeads`) with `assignedAgentId` set to the agent’s user id; dashboard filters by that id.
+- **Agency:** data on the agency user doc (e.g. `user.agencyStats.crmLeads`).
+
+Same UI, same refetch/cache behavior, same activity logging, same validation. Only where data is read/written changes.
+
+## Checklist when editing lead/CRM or agent flows
+
+1. **APIs:** If you change add-lead, update-lead, delete-lead, or dashboard:
+   - Apply the same logic to **all** branches (agency, agency_agent, sole). Same response shape, same activities, same status values.
+2. **Refetch/cache:** After a mutation (add/update/delete lead), the client must get **fresh** data (e.g. cache-bust or no-store). Same for all roles.
+3. **Client:** One code path for “fetch my leads” and “refetch after mutation”; role is not used to branch refetch or cache behavior.
+4. **New features:** If you add a field, status, or activity for leads, add it in **every** branch (api/add-lead, api/update-lead, api/users/add-lead, server add-lead/update-lead) so agency and sole stay in sync.
+
+## Where both paths are implemented
+
+- **Vercel:** `api/add-lead.js`, `api/update-lead.js`, `api/delete-lead.js`, `api/users/[id].js` (dashboard), `api/users/add-lead.js`
+- **Express:** `server/routes/users.js` (add-lead, dashboard GET `:id` with type=dashboard)
+- **Client:** CRM refetch uses same `fetchLeads(bypassCache)` for all roles; dashboard cache invalidated the same way.
+
+When fixing a bug for one role, verify the same fix or equivalent behavior for the other role and for agency.
