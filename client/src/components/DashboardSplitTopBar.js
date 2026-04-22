@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../config/api';
 import CommsPanel from './CommsPanel';
 import NotificationPanel from './NotificationPanel';
+import downloadDashboardPdf from '../utils/downloadDashboardPdf';
 
 const dashboardHomePath = (user) => {
     const r = String(user?.role || '').toLowerCase();
@@ -27,6 +28,7 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
     const [bellOpen, setBellOpen] = useState(false);
     const [chatUnread, setChatUnread] = useState(0);
     const [bellUnread, setBellUnread] = useState(0);
+    const [pdfBusy, setPdfBusy] = useState(false);
     const addWrapRef = useRef(null);
     const bellWrapRef = useRef(null);
 
@@ -56,6 +58,19 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
         document.addEventListener('pointerdown', close);
         return () => document.removeEventListener('pointerdown', close);
     }, [addOpen]);
+
+    const handleDownloadPdf = useCallback(async () => {
+        if (pdfBusy) return;
+        setPdfBusy(true);
+        try {
+            await downloadDashboardPdf();
+        } catch (e) {
+            const msg = e && e.message ? String(e.message) : 'Could not create PDF';
+            window.alert(msg);
+        } finally {
+            setPdfBusy(false);
+        }
+    }, [pdfBusy]);
 
     if (!user) return null;
 
@@ -130,9 +145,17 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
                     </button>
                 </div>
                 <div className="dash-split-topbar__actions">
-                    <button type="button" className="dash-split-topbar__pill dash-split-topbar__pill--teal" title="Download">
-                        <i className="fas fa-download" aria-hidden />
-                        Download
+                    <button
+                        type="button"
+                        className="dash-split-topbar__pill dash-split-topbar__pill--teal"
+                        title="Download dashboard as PDF"
+                        aria-label="Download dashboard as PDF"
+                        aria-busy={pdfBusy}
+                        disabled={pdfBusy}
+                        onClick={handleDownloadPdf}
+                    >
+                        <i className={`fas ${pdfBusy ? 'fa-spinner fa-spin' : 'fa-download'}`} aria-hidden />
+                        {pdfBusy ? 'Preparing…' : 'Download'}
                     </button>
                     <div className="dash-split-topbar__add-wrap" ref={addWrapRef}>
                         <button

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSidebar } from '../context/SidebarContext';
 import FloatingBugsFeedback from './FloatingBugsFeedback';
 import FloatingChat from './FloatingChat';
+import { getDemoState, exitDemoMode } from './DemoModeBar';
 
 const Sidebar = () => {
     const { mobileOpen, setMobileOpen } = useSidebar();
@@ -15,6 +16,11 @@ const Sidebar = () => {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const handleLogout = () => {
+        if (getDemoState()) {
+            exitDemoMode();
+            navigate('/admin');
+            return;
+        }
         localStorage.removeItem('user');
         window.location.href = '/';
     };

@@ -34,7 +34,9 @@ const styles = {
   tabActive: { padding: '12px 20px', border: 'none', background: '#fff', color: brand.darkTeal, fontWeight: '600', cursor: 'pointer', borderRadius: '8px 8px 0 0', borderBottom: `2px solid ${brand.darkTeal}` },
   search: { width: '100%', maxWidth: 320, padding: '10px 14px', borderRadius: '8px', border: `1px solid ${brand.alabasterGrey}`, marginBottom: '16px', fontSize: '14px', boxSizing: 'border-box' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { textAlign: 'left', background: brand.alabasterGrey, color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '12px' },
+  thead: { background: brand.alabasterGrey },
+  th: { textAlign: 'left', background: brand.alabasterGrey, color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '12px' },
+  td: { padding: '10px 8px' },
   tr: { borderBottom: `1px solid ${brand.alabasterGrey}`, fontSize: '14px' },
   actionBtnBase: { minHeight: 24, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', marginRight: '6px', fontSize: '11px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1.2, border: 'none' },
   viewBtn: { background: brand.darkTeal, color: '#fff' },
@@ -42,13 +44,27 @@ const styles = {
   delBtn: { background: brand.bloodRed, color: '#fff' },
   linkStyle: { color: brand.darkTeal, fontWeight: '600' },
   skeletonCell: { display: 'inline-block', height: 14, borderRadius: 4, background: brand.silver, minWidth: 40 },
-  roleBadge: (role) => ({
-    padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', minHeight: 24, display: 'inline-flex', alignItems: 'center',
-    background: role === 'admin' ? brand.amberGlow : role === 'agency' ? brand.darkTeal : brand.silver,
-    color: role === 'admin' || role === 'agency' ? '#fff' : '#374151',
-  }),
+  roleBadge: (role) => {
+    const r = (role || '').toLowerCase();
+    let background = brand.silver;
+    let color = '#374151';
+    if (r === 'admin') { background = brand.amberGlow; color = '#fff'; }
+    else if (r === 'agency') { background = brand.darkTeal; color = '#fff'; }
+    else if (r === 'enterprise') { background = '#7c3aed'; color = '#fff'; }
+    return {
+      padding: '4px 8px',
+      borderRadius: '6px',
+      fontSize: '11px',
+      fontWeight: '600',
+      minHeight: 24,
+      display: 'inline-flex',
+      alignItems: 'center',
+      background,
+      color,
+    };
+  },
   modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modalContent: { background: 'white', padding: '24px', borderRadius: '12px', maxWidth: '480px', width: '100%', maxHeight: '90vh', overflowY: 'auto' },
+  modalContent: { background: 'white', padding: '24px', borderRadius: '12px', maxWidth: '480px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
   inputStyle: { width: '100%', padding: '10px', marginBottom: '12px', borderRadius: '8px', border: `1px solid ${brand.alabasterGrey}`, boxSizing: 'border-box' },
   labelStyle: { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' },
   addBtn: { background: brand.darkTeal, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' },
@@ -504,15 +520,15 @@ export default function AdminDashboardLists() {
                         <div style={{ overflowX: 'auto' }}>
                             <table style={styles.table} className="admin-dashboard-table">
                                 <thead><tr style={styles.thead}>
-                                    <th style={{ width: 40 }}>
+                                    <th style={{ ...styles.th, width: 40 }}>
                                         <input type="checkbox" checked={allUsersSelected} ref={(el) => { if (el) el.indeterminate = someUsersSelected && !allUsersSelected; }} onChange={toggleSelectAllUsers} aria-label="Select all" />
                                     </th>
-                                    <th>Name</th><th>Surname</th><th>Email</th><th>Account type</th><th>Plan</th><th>Plan status</th><th>Sign-on date</th><th>Last logged in</th><th>Actions</th>
+                                    <th style={styles.th}>Name</th><th style={styles.th}>Surname</th><th style={styles.th}>Email</th><th style={styles.th}>Account type</th><th style={styles.th}>Plan</th><th style={styles.th}>Plan status</th><th style={styles.th}>Sign-on date</th><th style={styles.th}>Last logged in</th><th style={styles.th}>Actions</th>
                                 </tr></thead>
                                 <tbody>
                                     {showSkeleton && Array.from({ length: skeletonRows }).map((_, i) => (
                                         <tr key={`sk-${i}`} style={styles.tr}>
-                                            <td colSpan={10}><span style={styles.skeletonCell} /></td>
+                                            <td colSpan={10} style={styles.td}><span style={styles.skeletonCell} /></td>
                                         </tr>
                                     ))}
                                     {!showSkeleton && filteredUsers.map((u) => {
@@ -521,13 +537,13 @@ export default function AdminDashboardLists() {
                                         const mainAdmin = isMainAdmin(u);
                                         return (
                                             <tr key={u._id} style={styles.tr}>
-                                                <td>{mainAdmin ? <span style={{ color: brand.silver }}>—</span> : <input type="checkbox" checked={checked} onChange={() => toggleUserSelection(u._id)} aria-label={`Select ${u.email}`} />}</td>
-                                                <td>{name}</td><td>{surname}</td><td>{u.email}</td>
-                                                <td><span style={styles.roleBadge(u.role)}>{u.role || '—'}</span></td>
-                                                <td>{u.subscriptionPlan || '—'}</td><td>{u.subscriptionStatus || '—'}</td>
-                                                <td>{formatDateTime(signOnDate(u))}</td>
-                                                <td>{formatDateTime(u.lastLoginAt)}</td>
-                                                <td>
+                                                <td style={styles.td}>{mainAdmin ? <span style={{ color: brand.silver }}>—</span> : <input type="checkbox" checked={checked} onChange={() => toggleUserSelection(u._id)} aria-label={`Select ${u.email}`} />}</td>
+                                                <td style={styles.td}>{name}</td><td style={styles.td}>{surname}</td><td style={styles.td}>{u.email}</td>
+                                                <td style={styles.td}><span style={styles.roleBadge(u.role)}>{u.role || '—'}</span></td>
+                                                <td style={styles.td}>{u.subscriptionPlan || '—'}</td><td style={styles.td}>{u.subscriptionStatus || '—'}</td>
+                                                <td style={styles.td}>{formatDateTime(signOnDate(u))}</td>
+                                                <td style={styles.td}>{formatDateTime(u.lastLoginAt)}</td>
+                                                <td style={styles.td}>
                                                     <button type="button" onClick={() => { setEditUser({ ...u }); setEditModal(true); }} style={{ ...styles.actionBtnBase, ...styles.viewBtn }}>Edit</button>
                                                     <button type="button" onClick={() => { setResetUser(u); setNewPassword(''); setConfirmPassword(''); setResetModal(true); }} style={{ ...styles.actionBtnBase, ...styles.resetBtn }}>Reset password</button>
                                                     {!mainAdmin && <button type="button" onClick={() => handleDeleteClick(u)} style={{ ...styles.actionBtnBase, ...styles.delBtn }}>Delete</button>}
@@ -557,25 +573,25 @@ export default function AdminDashboardLists() {
                         <div style={{ overflowX: 'auto' }}>
                             <table style={styles.table} className="admin-dashboard-table">
                                 <thead><tr style={styles.thead}>
-                                    <th style={{ width: 40 }}>
+                                    <th style={{ ...styles.th, width: 40 }}>
                                         <input type="checkbox" checked={allListingsSelected} ref={(el) => { if (el) el.indeterminate = someListingsSelected && !allListingsSelected; }} onChange={toggleSelectAllListings} aria-label="Select all" />
                                     </th>
-                                    <th>Address</th><th>Type</th><th>Price</th><th>Status</th><th>Actions</th>
+                                    <th style={styles.th}>Address</th><th style={styles.th}>Type</th><th style={styles.th}>Price</th><th style={styles.th}>Status</th><th style={styles.th}>Actions</th>
                                 </tr></thead>
                                 <tbody>
                                     {loading && listings.length === 0 && Array.from({ length: 6 }).map((_, i) => (
-                                        <tr key={`sk-${i}`} style={styles.tr}><td colSpan={6}><span style={styles.skeletonCell} /></td></tr>
+                                        <tr key={`sk-${i}`} style={styles.tr}><td colSpan={6} style={styles.td}><span style={styles.skeletonCell} /></td></tr>
                                     ))}
                                     {!(loading && listings.length === 0) && filteredListings.map((p) => {
                                         const checked = selectedListingIds.includes(p._id);
                                         return (
                                             <tr key={p._id} style={styles.tr}>
-                                                <td><input type="checkbox" checked={checked} onChange={() => toggleListingSelection(p._id)} aria-label={`Select ${p.location || p._id}`} /></td>
-                                                <td>{[p.locationDetails?.streetAddress, p.locationDetails?.suburb, p.locationDetails?.city].filter(Boolean).filter((v, i, a) => a.findIndex(q => q.toLowerCase() === v.toLowerCase()) === i).join(', ') || p.location || p.address || '—'}</td>
-                                                <td>{p.listingType || p.propertyCategory || '—'}</td>
-                                                <td>{p.price || '—'}</td>
-                                                <td>{p.status || '—'}</td>
-                                                <td>
+                                                <td style={styles.td}><input type="checkbox" checked={checked} onChange={() => toggleListingSelection(p._id)} aria-label={`Select ${p.location || p._id}`} /></td>
+                                                <td style={styles.td}>{[p.locationDetails?.streetAddress, p.locationDetails?.suburb, p.locationDetails?.city].filter(Boolean).filter((v, i, a) => a.findIndex(q => q.toLowerCase() === v.toLowerCase()) === i).join(', ') || p.location || p.address || '—'}</td>
+                                                <td style={styles.td}>{p.listingType || p.propertyCategory || '—'}</td>
+                                                <td style={styles.td}>{p.price || '—'}</td>
+                                                <td style={styles.td}>{p.status || '—'}</td>
+                                                <td style={styles.td}>
                                                     <a href={`/property/${p._id}`} target="_blank" rel="noopener noreferrer" style={{ ...styles.actionBtnBase, ...styles.viewBtn, textDecoration: 'none' }}>View</a>
                                                     <button type="button" onClick={() => handleViewMetadata(p)} style={{ ...styles.actionBtnBase, background: '#6366f1', color: '#fff' }}>Metadata</button>
                                                     <button type="button" onClick={() => handleDeleteListing(p)} style={{ ...styles.actionBtnBase, ...styles.delBtn }}>Delete</button>

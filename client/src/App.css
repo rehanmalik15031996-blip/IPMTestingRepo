@@ -5442,6 +5442,18 @@ button, a, [role="button"], select, input[type="submit"], input[type="button"] {
     padding-top: 0;
 }
 
+/* Demo mode bar offset */
+.layout-content.layout-demo-active {
+    padding-top: 94px;
+}
+.layout-demo-active .sidebar-dark {
+    top: 94px;
+    height: calc(100vh - 94px);
+}
+.layout-demo-active .dashboard-container {
+    min-height: calc(100vh - 94px);
+}
+
 /* Responsive overrides for split topbar */
 @media (max-width: 768px) {
     .dash-split-topbar__main {

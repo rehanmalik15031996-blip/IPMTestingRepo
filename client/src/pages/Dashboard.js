@@ -17,6 +17,7 @@ import { brand, getStatusColor } from '../config/brandColors';
 import { sanitizeAgencyBranchDisplay } from '../utils/display';
 import { isNewsOrPropertySourceUrl } from '../utils/newsUrl';
 import QuickActionsButton from '../components/QuickActionsButton';
+import { getDemoState } from '../components/DemoModeBar';
 
 // Fallback only when API returns no trends (e.g. offline). Actuals from marketTrendsMonthly.json; server should always return real data.
 const DEFAULT_MARKET_TRENDS = [
@@ -511,13 +512,19 @@ const Dashboard = () => {
         };
     }, [userId, fetchDashboardData]);
 
-    // Buyers, sellers, investors use legacy Dashboard; tenants only have Saved; partners only My Ads
     const role = user?.role?.toLowerCase();
+    const isInDemoMode = !!getDemoState();
     if (role === 'enterprise') {
         return <EnterpriseDashboard />;
     }
-    if (role === 'partner') {
+    if (role === 'partner' && !isInDemoMode) {
         return <Navigate to="/my-ads" replace />;
+    }
+    if (role === 'partner' && isInDemoMode) {
+        const pt = (user?.partnerType || '').toLowerCase();
+        if (pt === 'conveyancer') return <Navigate to="/conveyancer" replace />;
+        if (pt === 'bond_originator') return <Navigate to="/bond-originator-dashboard" replace />;
+        return <Navigate to="/partner-dashboard" replace />;
     }
     if (role === 'tenant') {
         return <Navigate to="/saved" replace />;
@@ -533,7 +540,13 @@ const Dashboard = () => {
         return (
             <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
                 <Sidebar />
-                <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <main className="dashboard-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto', padding: isMobile ? '16px' : '24px 40px', background: '#f1f5f9', fontFamily: 'sans-serif' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                        <h1 style={{ margin: 0, color: '#0f172a', fontSize: '24px' }}>Admin · Dashboard</h1>
+                        <button type="button" onClick={() => navigate('/admin/demo')} style={{ background: '#10575c', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <i className="fas fa-eye" style={{ fontSize: '11px' }} /> Demo Dashboards
+                        </button>
+                    </div>
                     <AdminDashboardLists />
                 </main>
             </div>

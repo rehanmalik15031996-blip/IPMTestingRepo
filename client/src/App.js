@@ -19,6 +19,7 @@ import { SidebarProvider, useSidebar } from './context/SidebarContext';
 import GuidedTour from './components/GuidedTour';
 import MobileFAB from './components/MobileFAB';
 import DashboardSplitTopBar from './components/DashboardSplitTopBar';
+import DemoModeBar, { getDemoState } from './components/DemoModeBar';
 import { PropdataImportProvider } from './context/PropdataImportContext';
 import { useTranslation } from 'react-i18next';
 
@@ -58,6 +59,7 @@ const ListingManagement = lazy(() => import('./pages/ListingManagement'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
 const News = lazy(() => import('./pages/News'));
 const Admin = lazy(() => import('./pages/Admin'));
+const AdminDemo = lazy(() => import('./pages/AdminDemo'));
 const AdminMarketing = lazy(() => import('./pages/AdminMarketing'));
 const EnterpriseRegistration = lazy(() => import('./pages/EnterpriseRegistration'));
 const EnterpriseDashboard = lazy(() => import('./pages/EnterpriseDashboard'));
@@ -242,7 +244,7 @@ const LayoutInner = ({ children }) => {
     const showPublicLayout = !hideNav.includes(location.pathname);
 
     // Dashboard-style pages: show solid top nav in flow (no overlay); sidebar starts below nav
-    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
+    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/demo', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
     const isDashboardLayout = dashboardLayoutPaths.includes(location.pathname) || location.pathname.startsWith('/bond-originator') || location.pathname.startsWith('/conveyancer') || location.pathname.startsWith('/partner/') || location.pathname.startsWith('/enterprise/');
     // Home, Services, Pricing: same fixed landing bar + same layout shell as home/services (layout-home).
     const isLandingNav = ['/', '/our-services', '/pricing'].includes(location.pathname);
@@ -293,6 +295,7 @@ const LayoutInner = ({ children }) => {
                     isAgentOrAgency={!!isAgentOrAgency}
                 />
             )}
+            {isDashboardLayout && <DemoModeBar />}
 
             {/* --- NAVBAR (hidden for dashboard layouts — they use DashboardSplitTopBar) --- */}
             {showPublicLayout && !isDashboardLayout && (
@@ -673,6 +676,7 @@ const LayoutInner = ({ children }) => {
             <div className={[
                 'layout-content',
                 isDashboardLayout ? 'layout-dashboard-shell' : '',
+                isDashboardLayout && getDemoState() ? 'layout-demo-active' : '',
                 showPublicLayout && !isDashboardLayout ? 'layout-with-nav' : '',
                 isLayoutHome ? 'layout-home' : '',
             ].filter(Boolean).join(' ')}>
@@ -687,7 +691,7 @@ const LayoutInner = ({ children }) => {
 
 const Layout = ({ children }) => {
     const location = useLocation();
-    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
+    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/demo', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
     const isDashboardLayout = dashboardLayoutPaths.includes(location.pathname) || location.pathname.startsWith('/bond-originator') || location.pathname.startsWith('/conveyancer') || location.pathname.startsWith('/partner/') || location.pathname.startsWith('/enterprise/');
     const content = <LayoutInner>{children}</LayoutInner>;
     return isDashboardLayout ? <SidebarProvider>{content}</SidebarProvider> : content;
@@ -774,6 +778,7 @@ function App() {
                 <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
                 <Route path="/property/:id" element={<Property />} />
                 <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+                <Route path="/admin/demo" element={<ProtectedRoute><AdminDemo /></ProtectedRoute>} />
                 <Route path="/admin/marketing" element={<ProtectedRoute><AdminMarketing /></ProtectedRoute>} />
                 <Route path="/independent-agent-signup" element={<IndependentAgentRegistration />} />
                 <Route path="/agency-agent-invite" element={<AgencyAgentInviteRegistration />} />

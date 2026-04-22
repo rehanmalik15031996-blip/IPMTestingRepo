@@ -1558,9 +1558,9 @@ const Property = () => {
                     const vacancyRate = 12;
 
                     const _db = { borderTop: `3px solid ${TEAL}`, background: '#fff', borderRadius: 10, padding: '10px 12px', flex: '1 1 0%', minWidth: 0 };
-                    const _dbLabel = { fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: TXT2, textTransform: 'uppercase', margin: '0 0 4px' };
-                    const _dbValue = { fontSize: 18, fontWeight: 800, color: TXT, margin: '0 0 2px', lineHeight: 1.2 };
-                    const _dbSub = { fontSize: 10, color: TXT2, margin: 0, lineHeight: 1.3 };
+                    const _dbLabel = { fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: TXT2, textTransform: 'uppercase', margin: '0 0 4px' };
+                    const _dbValue = { fontSize: 20, fontWeight: 800, color: TXT, margin: '0 0 2px', lineHeight: 1.2 };
+                    const _dbSub = { fontSize: 9, color: TXT2, margin: 0, lineHeight: 1.3 };
                     const _dbTag = { fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 10, display: 'inline-block', marginTop: 4 };
                     const _dbTagTeal = { ..._dbTag, background: 'rgba(17,87,92,0.1)', color: FOREST };
                     const _dbTagGold = { ..._dbTag, background: 'rgba(255,200,1,0.15)', color: GOLD_DEEP };
@@ -1589,10 +1589,10 @@ const Property = () => {
 
                     const BarMini = ({ value, max, color = TEAL, label }) => (
                         <div style={{ marginBottom: 6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: TXT2, marginBottom: 2 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: TXT2, marginBottom: 2 }}>
                                 <span>{label}</span><span style={{ fontWeight: 700, color: TXT }}>{value}</span>
                             </div>
-                            <div style={{ height: 5, background: SURFACE, borderRadius: 3 }}>
+                            <div style={{ height: 7, background: SURFACE, borderRadius: 3 }}>
                                 <div style={{ height: '100%', width: `${Math.min(100, (Number(String(value).replace(/[^0-9.]/g,'')) / max) * 100)}%`, background: color, borderRadius: 3, transition: 'width 0.5s ease' }} />
                             </div>
                         </div>
@@ -1601,11 +1601,11 @@ const Property = () => {
                     const MonthBars = ({ data, color = TEAL }) => {
                         const maxVal = Math.max(...data.map(d => d.v));
                         return (
-                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 45 }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 60 }}>
                                 {data.map((d, i) => (
                                     <div key={i} style={{ flex: '1 1 0%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                        <div style={{ width: '100%', height: Math.max(4, (d.v / maxVal) * 38), background: i === new Date().getMonth() ? GOLD : color, borderRadius: 2, transition: 'height 0.4s ease' }} />
-                                        <span style={{ fontSize: 7, color: TXT2, marginTop: 2 }}>{d.m}</span>
+                                        <div style={{ width: '100%', height: Math.max(4, (d.v / maxVal) * 52), background: i === new Date().getMonth() ? GOLD : color, borderRadius: 2, transition: 'height 0.4s ease' }} />
+                                        <span style={{ fontSize: 11, color: TXT2, marginTop: 2 }}>{d.m}</span>
                                     </div>
                                 ))}
                             </div>
@@ -1692,15 +1692,15 @@ const Property = () => {
                                             <div style={{ flex: 1 }}>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL)} />
-                                                    <div><p style={{ fontSize: 10, fontWeight: 700, color: TXT, margin: 0 }}>Strong Demand</p><p style={{ fontSize: 9, color: TXT2, margin: 0 }}>Popular with high-income buyers</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Strong Demand</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>Popular with high-income buyers</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(GOLD)} />
-                                                    <div><p style={{ fontSize: 10, fontWeight: 700, color: TXT, margin: 0 }}>Premium Build</p><p style={{ fontSize: 9, color: TXT2, margin: 0 }}>Modern spec, no maintenance backlog</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Premium Build</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>Modern spec, no maintenance backlog</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL_LIGHT)} />
-                                                    <div><p style={{ fontSize: 10, fontWeight: 700, color: TXT, margin: 0 }}>Consistent Appreciation</p><p style={{ fontSize: 9, color: TXT2, margin: 0 }}>{appreciation5y} over 5 years</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Consistent Appreciation</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{appreciation5y} over 5 years</p></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1765,15 +1765,15 @@ const Property = () => {
                                             <div style={{ flex: 1 }}>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL)} />
-                                                    <div><p style={{ fontSize: 10, fontWeight: 700, color: TXT, margin: 0 }}>Strong Demand</p><p style={{ fontSize: 9, color: TXT2, margin: 0 }}>Popular with high-income buyers &amp; expats</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Strong Demand</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>Popular with high-income buyers &amp; expats</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(GOLD)} />
-                                                    <div><p style={{ fontSize: 10, fontWeight: 700, color: TXT, margin: 0 }}>Premium New Build</p><p style={{ fontSize: 9, color: TXT2, margin: 0 }}>No maintenance backlog, modern ESG spec</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Premium New Build</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>No maintenance backlog, modern ESG spec</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL_LIGHT)} />
-                                                    <div><p style={{ fontSize: 10, fontWeight: 700, color: TXT, margin: 0 }}>Consistent Appreciation</p><p style={{ fontSize: 9, color: TXT2, margin: 0 }}>{appreciation5y} over 5 years with infrastructure investment</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Consistent Appreciation</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{appreciation5y} over 5 years with infrastructure investment</p></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1904,7 +1904,9 @@ const Property = () => {
                                             onClick={() => setExpandedAccordion(p.key)}
                                             style={{
                                                 ...infoTabBtn,
-                                                color: isActive ? '#ffc801' : '#11575C',
+                                                ...(isActive
+                                                    ? { background: '#10575c', color: '#ffc803' }
+                                                    : { background: '#f3f3f3', color: '#11575C' }),
                                                 ...(idx === 0 ? { borderLeft: 'none' } : {}),
                                             }}
                                             aria-selected={isActive}
@@ -2253,32 +2255,33 @@ const bondZaResultMuted = { fontSize: 13, color: '#6b7280', fontWeight: 600, mar
 const sectionTitle = { color: '#11575C', marginBottom: '15px' };
 const descText = { color: '#64748b', lineHeight: '1.6', fontSize: '14px', textAlign: 'justify' };
 // Info tabs — horizontal card with vertical tab bar
-const INFO_TABS_HEIGHT = 480;
+const INFO_TABS_HEIGHT = 560;
 const infoTabsCard = {
     display: 'flex', flexDirection: 'row', borderRadius: 20, overflow: 'hidden',
-    border: 'none', background: '#f3f3f3', marginBottom: 60,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.04)', height: INFO_TABS_HEIGHT,
+    border: '1px solid #e2e8f0', background: '#f8fafc', marginBottom: 60,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.06)', height: INFO_TABS_HEIGHT,
 };
 const infoTabsTextCol = {
-    flex: '1 1 0%', padding: '28px 24px 28px 28px', display: 'flex', flexDirection: 'column',
-    justifyContent: 'flex-start', minWidth: 0, background: '#f3f3f3',
+    flex: '1 1 0%', padding: '32px 28px 28px 32px', display: 'flex', flexDirection: 'column',
+    justifyContent: 'flex-start', minWidth: 0, background: '#f8fafc',
 };
 const infoTabsTitle = {
-    fontSize: 20, fontWeight: 700, color: '#11575C', margin: '0 0 14px', lineHeight: 1.3,
+    fontSize: 22, fontWeight: 700, color: '#11575C', margin: '0 0 16px', lineHeight: 1.3,
     flexShrink: 0,
 };
 const infoTabsDescWrap = {
-    flex: '1 1 0%', overflowY: 'auto', minHeight: 0,
+    flex: '1 1 0%', overflowY: 'auto', minHeight: 0, paddingRight: 8,
 };
 const infoTabsDesc = {
-    color: '#64748b', fontSize: 14, lineHeight: 1.7, textAlign: 'justify', margin: 0,
+    color: '#64748b', fontSize: 15, lineHeight: 1.75, textAlign: 'justify', margin: 0,
 };
 const infoTabsDashCol = {
-    flex: `0 0 ${INFO_TABS_HEIGHT + 20}px`, padding: '10px 12px 6px', overflow: 'hidden',
-    display: 'flex', flexDirection: 'column',
+    flex: '0 0 520px', padding: '10px 12px 6px', minHeight: 0,
+    display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1px solid #e2e8f0',
 };
 const infoTabsDashScroll = {
-    flex: '1 1 0%', overflowY: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8,
+    flex: '1 1 0%', overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10,
+    paddingRight: 6,
 };
 const infoTabsBarCol = {
     display: 'flex', flexDirection: 'row', flexShrink: 0,
