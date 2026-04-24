@@ -42,6 +42,18 @@ export function getDemoState() {
     }
 }
 
+function buildFakeUserFromDemo(demoUser, adminToken) {
+    // Prefer the short-lived demo JWT minted server-side (issued by /api/admin/demo-users).
+    // Falls back to the admin's token only if the backend didn't supply one, so API calls
+    // are authenticated as the demo user and the dashboard loads that user's real data.
+    const token = demoUser?._demoToken || adminToken;
+    return {
+        ...demoUser,
+        token,
+        _id: demoUser._id,
+    };
+}
+
 export function startDemoMode(realUser, demoUsers, selectedRole) {
     const availableRoles = ROLE_ORDER.filter((k) => demoUsers[k]);
     const demoUser = demoUsers[selectedRole];
@@ -49,11 +61,7 @@ export function startDemoMode(realUser, demoUsers, selectedRole) {
 
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ realUser, demoUsers, selectedRole, availableRoles }));
 
-    const fakeUser = {
-        ...demoUser,
-        token: realUser.token,
-        _id: demoUser._id,
-    };
+    const fakeUser = buildFakeUserFromDemo(demoUser, realUser.token);
     localStorage.setItem('user', JSON.stringify(fakeUser));
     return true;
 }
@@ -66,11 +74,7 @@ export function switchDemoRole(roleKey) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
 
     const demoUser = state.demoUsers[roleKey];
-    const fakeUser = {
-        ...demoUser,
-        token: state.realUser.token,
-        _id: demoUser._id,
-    };
+    const fakeUser = buildFakeUserFromDemo(demoUser, state.realUser?.token);
     localStorage.setItem('user', JSON.stringify(fakeUser));
     return ROLE_HOME_ROUTE[roleKey] || '/dashboard';
 }

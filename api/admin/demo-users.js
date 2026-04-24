@@ -1,10 +1,18 @@
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const root = path.resolve(__dirname, '../..');
 const connectDB = require(path.join(root, 'api', '_lib', 'mongodb'));
 const { handleCors } = require(path.join(root, 'api', '_lib', 'cors'));
 const { requireAuth } = require(path.join(root, 'api', '_lib', 'auth'));
 const User = require(path.join(root, 'server', 'models', 'User'));
 const Property = require(path.join(root, 'server', 'models', 'Property'));
+
+const JWT_SECRET = process.env.JWT_SECRET || 'SECRET_KEY_123';
+const DEMO_TOKEN_TTL = '8h';
+
+function mintDemoToken(userId) {
+  return jwt.sign({ id: String(userId), demo: true }, JWT_SECRET, { expiresIn: DEMO_TOKEN_TTL });
+}
 
 const DEMO_ROLES = [
   { key: 'agency', query: { role: 'agency' }, label: 'Agency' },
@@ -86,7 +94,11 @@ module.exports = async (req, res) => {
       }
 
       if (picked) {
-        results[dr.key] = { ...picked, _label: dr.label };
+        results[dr.key] = {
+          ...picked,
+          _label: dr.label,
+          _demoToken: mintDemoToken(picked._id),
+        };
       }
     }
     return res.status(200).json(results);
