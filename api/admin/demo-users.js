@@ -18,6 +18,19 @@ const DEMO_ROLES = [
   { key: 'seller', query: { role: 'seller' }, label: 'Seller' },
 ];
 
+// Pinned demo accounts per role. If an email is set here (or via env var) and the
+// user exists in the DB, that account is used for the demo launcher. Otherwise we
+// silently fall back to the auto-pick logic (newest user of that role with listings).
+const PINNED_DEMO_EMAILS = {
+  enterprise: process.env.DEMO_USER_ENTERPRISE_EMAIL || 'ramimof298@spotshops.com',
+  agency: process.env.DEMO_USER_AGENCY_EMAIL || 'foros40214@bultoc.com',
+  agency_agent: process.env.DEMO_USER_AGENCY_AGENT_EMAIL || 'xetihe5841@creteanu.com',
+};
+
+function normalizeEmail(e) {
+  return String(e || '').trim().toLowerCase();
+}
+
 module.exports = async (req, res) => {
   if (handleCors(req, res)) return;
   if (req.method !== 'GET') return res.status(405).json({ message: 'Method not allowed' });
@@ -34,27 +47,44 @@ module.exports = async (req, res) => {
     const results = {};
 
     for (const dr of DEMO_ROLES) {
-      const users = await User.find(dr.query)
-        .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus')
-        .sort({ _id: -1 })
-        .limit(20)
-        .lean();
-
-      if (!users.length) continue;
-
       let picked = null;
-      for (const u of users) {
-        const propCount = await Property.countDocuments({
-          $or: [{ agentId: u._id }, { userId: u._id }],
-        });
-        if (propCount > 0) {
-          picked = { ...u, _propertyCount: propCount };
-          break;
+
+      const pinnedEmail = normalizeEmail(PINNED_DEMO_EMAILS[dr.key]);
+      if (pinnedEmail) {
+        const pinnedUser = await User.findOne({ ...dr.query, email: pinnedEmail })
+          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus')
+          .lean();
+        if (pinnedUser) {
+          const propCount = await Property.countDocuments({
+            $or: [{ agentId: pinnedUser._id }, { userId: pinnedUser._id }],
+          });
+          picked = { ...pinnedUser, _propertyCount: propCount, _pinned: true };
         }
       }
-      if (!picked && users.length) {
-        picked = { ...users[0], _propertyCount: 0 };
+
+      if (!picked) {
+        const users = await User.find(dr.query)
+          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus')
+          .sort({ _id: -1 })
+          .limit(20)
+          .lean();
+
+        if (!users.length) continue;
+
+        for (const u of users) {
+          const propCount = await Property.countDocuments({
+            $or: [{ agentId: u._id }, { userId: u._id }],
+          });
+          if (propCount > 0) {
+            picked = { ...u, _propertyCount: propCount };
+            break;
+          }
+        }
+        if (!picked) {
+          picked = { ...users[0], _propertyCount: 0 };
+        }
       }
+
       if (picked) {
         results[dr.key] = { ...picked, _label: dr.label };
       }
