@@ -1,6 +1,8 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import ServicesSectionPricingTYo6r from './ourServices/ServicesSectionPricingTYo6r';
+import HomeFigmaTopbar from '../components/HomeFigmaTopbar';
+import '../components/HomeLandingHeroFigma.css';
 
 const BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 const PRICING_TITLE = 'Pricing | IPM – International Property Market';
@@ -19,7 +21,7 @@ const getPricingJsonLd = () => ({
 
 /**
  * Standalone pricing route — same tier UI as the Our Services pricing section (ServicesSectionPricingTYo6r).
- * Top nav matches Home and Our Services (landing bar) via App.js `isLandingNav`.
+ * Top nav uses the shared Figma top bar (`HomeFigmaTopbar`) in dark mode, matching Home and Our Services.
  */
 const Pricing = () => {
     return (
@@ -33,7 +35,8 @@ const Pricing = () => {
                 <meta property="og:type" content="website" />
                 <script type="application/ld+json">{JSON.stringify(getPricingJsonLd())}</script>
             </Helmet>
-            {/* Clears fixed landing nav (72px); layout-home has no content padding, same as Home / Our Services */}
+            <HomeFigmaTopbar darkMode />
+            {/* Clears fixed Figma top bar (64px header + small breathing room); layout-home has no content padding. */}
             <div className="w-full pt-[72px]">
                 <ServicesSectionPricingTYo6r getInTouchTo="/our-services#home-section-contact" />
             </div>

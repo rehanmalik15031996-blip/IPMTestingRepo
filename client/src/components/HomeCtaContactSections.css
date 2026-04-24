@@ -304,7 +304,7 @@
 
 /* Anima FooterFooter (MSGxJ) — class root so id can be home- or services- prefixed */
 .home-anima-footer-root {
-    background: var(--color-brand-forest, #04342c);
+    background: #10575c;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     padding: 52px 20px 28px;
     box-sizing: border-box;
@@ -596,7 +596,7 @@
     outline-offset: 1px;
 }
 .home-anima-footer-root .home-anima-selector option {
-    background: var(--color-brand-forest, #04342c);
+    background: #10575c;
     color: #edf4f0;
 }
 .home-anima-footer-root .home-anima-legal-links {

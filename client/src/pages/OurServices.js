@@ -1,6 +1,8 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import ServicesXePoOTop from './ourServices/ServicesXePoOTop';
+import HomeFigmaTopbar from '../components/HomeFigmaTopbar';
+import '../components/HomeLandingHeroFigma.css';
 
 const BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 const SERVICES_TITLE = 'Our Services | IPM – International Property Market';
@@ -48,6 +50,7 @@ const OurServices = () => {
                 <meta name="twitter:description" content={SERVICES_DESCRIPTION} />
                 <script type="application/ld+json">{JSON.stringify(getServicesJsonLd())}</script>
             </Helmet>
+            <HomeFigmaTopbar darkMode />
             <ServicesXePoOTop />
         </>
     );

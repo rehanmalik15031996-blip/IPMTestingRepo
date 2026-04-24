@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 166.877 68.5576" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Horizontal Lines">
+<line id="Line 1" x1="0.563477" y1="0.5" x2="166.377" y2="0.5" stroke="var(--stroke-0, #E5E5EF)" stroke-linecap="round" stroke-dasharray="4 7"/>
+<line id="Line 2" x1="0.563477" y1="16.8608" x2="166.377" y2="16.8608" stroke="var(--stroke-0, #E5E5EF)" stroke-linecap="round" stroke-dasharray="4 7"/>
+<line id="Line 3" x1="0.563477" y1="33.2217" x2="166.377" y2="33.2217" stroke="var(--stroke-0, #E5E5EF)" stroke-linecap="round" stroke-dasharray="4 7"/>
+<line id="Line 4" x1="0.563477" y1="49.583" x2="166.377" y2="49.583" stroke="var(--stroke-0, #E5E5EF)" stroke-linecap="round" stroke-dasharray="4 7"/>
+<line id="Line 5" x1="0.5" y1="68.0575" x2="166.313" y2="68.0575" stroke="var(--stroke-0, #F2F1FF)" stroke-linecap="round"/>
+</g>
+</svg>

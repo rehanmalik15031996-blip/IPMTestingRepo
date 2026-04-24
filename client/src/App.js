@@ -249,6 +249,10 @@ const LayoutInner = ({ children }) => {
     // Home, Services, Pricing: same fixed landing bar + same layout shell as home/services (layout-home).
     const isLandingNav = ['/', '/our-services', '/pricing'].includes(location.pathname);
     const isLayoutHome = ['/', '/our-services', '/pricing'].includes(location.pathname);
+    /* Home rebuild: Home hero embeds the Figma top bar; Services and Pricing now
+       render the same Figma top bar in dark-mode on their own pages. Hide the
+       legacy global landing nav on all three routes to prevent a double bar. */
+    const hideGlobalLandingNavForHome = ['/', '/our-services', '/pricing'].includes(location.pathname);
     const navClass = showPublicLayout ? (isLandingNav ? 'news-nav news-nav--landing' : 'news-nav news-nav--hero') : 'news-nav news-nav--solid';
     const isAgentOrAgency = user && ['agency', 'agency_agent', 'independent_agent', 'agent'].includes(String(user.role).toLowerCase());
 
@@ -298,7 +302,7 @@ const LayoutInner = ({ children }) => {
             {isDashboardLayout && <DemoModeBar />}
 
             {/* --- NAVBAR (hidden for dashboard layouts — they use DashboardSplitTopBar) --- */}
-            {showPublicLayout && !isDashboardLayout && (
+            {showPublicLayout && !isDashboardLayout && !hideGlobalLandingNavForHome && (
                 <nav className={navClass}>
                     {isLandingNav ? (
                         <div className="nav-landing-inner">
@@ -615,8 +619,8 @@ const LayoutInner = ({ children }) => {
                 </div>
             )}
 
-            {/* Mobile nav menu overlay (public pages, not dashboard) */}
-            {showPublicLayout && !isDashboardLayout && (
+            {/* Mobile nav menu overlay (public pages, not dashboard); home uses in-hero drawer */}
+            {showPublicLayout && !isDashboardLayout && !hideGlobalLandingNavForHome && (
                 <div className={`nav-mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
                     {user && <NavSettingsDropdown />}
                     {user ? (

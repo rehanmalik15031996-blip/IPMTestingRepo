@@ -1,0 +1,216 @@
+/*
+ * Section 3 — Figma node 2374:2 — scroll-pinned horizontal carousel.
+ * Section height = N × SLIDE_SCROLL_VH  (more vh per slide = more gradual scroll).
+ * Slide width < viewport so adjacent slides peek in (Framer-style).
+ */
+.home-carousel {
+  --carousel-slides: 5;
+  --carousel-scroll-vh: 80;
+
+  /* Content frame (matches hero's --figma-content + gutter) so the active
+     slide's left/right edges align with Section 1 and Section 2. */
+  --figma-content-w: 1180px;
+  --figma-gutter: clamp(16px, 4vw, 24px);
+
+  /* Slide card geometry — mirrors Figma 1402×788 (aspect ~1.78).
+     Width = 1180px (capped by viewport minus gutters), matching hero frame. */
+  --slide-w: min(var(--figma-content-w), 100vw - (2 * var(--figma-gutter)));
+  --slide-gap: clamp(18px, 2vw, 36px);
+
+  position: relative;
+  width: 100%;
+  /* Dark surround blends with the card's teal scrim so the vertical bands
+     above/below the card (caused by the card's fixed 1402:788 aspect) don't
+     read as empty white space. */
+  background: #060606;
+  color: #ffffff;
+  font-family: 'Poppins', system-ui, sans-serif;
+  /* Total scroll distance = (slides - 1) transitions + 1 dwell viewport */
+  height: calc((var(--carousel-slides) - 1) * var(--carousel-scroll-vh) * 1vh + 100vh);
+}
+
+/* Pinned frame: one viewport, sticks while section scrolls */
+.home-carousel__pin {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  /* First slide must start centered, last slide must end centered */
+  padding-inline: calc((100vw - var(--slide-w)) / 2);
+  box-sizing: border-box;
+}
+
+/* Horizontal track translated by JS — no CSS transition so motion is 1:1 with scroll */
+.home-carousel__track {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--slide-gap);
+  height: 100%;
+  will-change: transform;
+}
+
+/* Each slide = one card-width; non-active slides peek at the edges of the viewport */
+.home-carousel__slide {
+  flex: 0 0 var(--slide-w);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, filter, transform;
+}
+
+/* Card — Figma design is 1402×788 (1.78), but on the live site we prefer the
+   card to fill most of the pinned viewport vertically so the carousel feels
+   intentional rather than letterboxed. The bg image uses object-fit: cover
+   so the visual stays correct at any aspect ratio. */
+.home-carousel__card {
+  position: relative;
+  width: 100%;
+  height: min(88vh, calc(var(--slide-w) / 1.2));
+  min-height: 480px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.25);
+  isolation: isolate;
+}
+
+.home-carousel__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Figma overlay (Fill inspector): IPM green #10575C at 30% opacity */
+.home-carousel__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(16, 87, 92, 0.30);
+  pointer-events: none;
+}
+
+/* Copy sits around 40% from the top of the card — matches the Figma render
+   (which visually places the block in the upper-middle). */
+.home-carousel__copy {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1400px, 92%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(12px, 1.8vh, 28px);
+  text-align: center;
+  box-sizing: border-box;
+  padding: 0 clamp(12px, 2vw, 40px);
+}
+
+.home-carousel__title {
+  margin: 0;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  font-synthesis: none;
+  font-size: clamp(24px, 3.34vw, 64px);
+  line-height: 1.15;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-carousel__title-line {
+  display: block;
+}
+
+/* Figma subtitle reads light + translucent — ExtraLight (200) with
+   anti-aliased rendering to visually slim it down between Thin and ExtraLight. */
+.home-carousel__sub {
+  margin: 0;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: clamp(14px, 1.67vw, 32px);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+}
+
+.home-carousel__sub * {
+  font-weight: 200;
+  font-synthesis: none;
+}
+
+.home-carousel__sub-line {
+  display: block;
+}
+
+/* Dots indicator */
+.home-carousel__dots {
+  position: absolute;
+  bottom: clamp(20px, 3.5vh, 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 3;
+}
+
+.home-carousel__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(16, 87, 92, 0.25);
+  transition: background 220ms ease, width 220ms ease;
+}
+
+.home-carousel__dot.is-active {
+  background: #10575c;
+  width: 22px;
+  border-radius: 4px;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .home-carousel {
+    height: auto;
+  }
+  .home-carousel__pin {
+    position: relative;
+    height: auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
+  .home-carousel__track {
+    flex-direction: column;
+    transform: none !important;
+    gap: clamp(16px, 3vh, 32px);
+  }
+  .home-carousel__slide {
+    flex-basis: auto;
+    width: 100%;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  .home-carousel__dots {
+    display: none;
+  }
+}

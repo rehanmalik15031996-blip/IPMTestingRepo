@@ -403,25 +403,6 @@ export function HomeAnimaFooter({ idPrefix = 'home' }) {
                         <small className="home-anima-legal-muted">GDPR Compliant</small>
                         <small className="home-anima-legal-muted">POPIA Compliant</small>
                     </div>
-                    <div className="home-anima-selector-row" aria-label="Regional preferences">
-                        <label className="home-anima-selector-label">
-                            <span>Language / Region</span>
-                            <select defaultValue="en-za" className="home-anima-selector">
-                                <option value="en-za">English (South Africa)</option>
-                                <option value="en-us">English (United States)</option>
-                                <option value="en-ae">English (UAE)</option>
-                            </select>
-                        </label>
-                        <label className="home-anima-selector-label">
-                            <span>Currency</span>
-                            <select defaultValue="zar" className="home-anima-selector">
-                                <option value="zar">ZAR (R)</option>
-                                <option value="usd">USD ($)</option>
-                                <option value="eur">EUR (€)</option>
-                                <option value="aed">AED (د.إ)</option>
-                            </select>
-                        </label>
-                    </div>
                     <div className="home-anima-legal-links">
                         <button type="button" className="home-anima-legal-link" onClick={() => setShowTermsModal(true)}>
                             Terms

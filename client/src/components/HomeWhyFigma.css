@@ -1,0 +1,395 @@
+/*
+ * Section 6 — "Why IPM" (Figma node 2382:10).
+ *
+ * Figma reference (desktop artboard 1920 wide):
+ *   Section:       1920 × 1167, white
+ *   CTA button:    300 × 75, radius 20, 2px grey border, centered at top
+ *   Copy column:   ~632 wide, left aligned
+ *     Eyebrow  Poppins Light 24, #c2c3c3
+ *     H1 line1 Poppins ExtraLight 50, #10575c
+ *     H1 line2 Playfair Display Medium Italic 60, #ffc802
+ *     Body     Poppins Light 20, #10575c
+ *   Visual column: frame 700 × 805 (photo + glass overlay)
+ *     Inner focus card: 331 × 602, rounded 20
+ *     Widgets all rounded 20, rgba(255,255,255,0.3), blur 25
+ *
+ * Widget positions, sizes and chart placements are expressed as percentages
+ * of the 700 × 805 photo frame, taken directly from Figma metadata.
+ */
+.home-why {
+  --ipm-green: #10575c;
+  --ipm-yellow: #ffc802;
+  --ipm-grey: #c2c3c3;
+
+  --figma-content-w: 1180px;
+  --figma-gutter: clamp(16px, 4vw, 24px);
+
+  /* Shared vertical rhythm so the space above and below the CTA button
+     (between this section and the preceding/following content) stays equal. */
+  --home-why-band: clamp(40px, 6vh, 80px);
+
+  position: relative;
+  width: 100%;
+  background: #ffffff;
+  color: var(--ipm-green);
+  font-family: 'Poppins', system-ui, sans-serif;
+  box-sizing: border-box;
+  padding: var(--home-why-band) var(--figma-gutter);
+}
+
+@media (min-width: 1200px) {
+  .home-why {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+.home-why__inner {
+  width: 100%;
+  max-width: var(--figma-content-w);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  /* Same vertical band below the CTA as above it (section padding-top). */
+  gap: var(--home-why-band);
+}
+
+/* ---------- Top CTA ---------- */
+.home-why__cta-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.home-why__cta {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: clamp(41px, 4.68vw, 64px);  /* 15% shorter than Figma's 75 */
+  padding: 0 clamp(28px, 3vw, 48px);
+  border-radius: 20px;
+  border: 2px solid var(--ipm-grey);
+  background: transparent;
+  color: var(--ipm-grey);
+  text-decoration: none;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(15px, 1.04vw, 20px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+.home-why__cta:hover {
+  color: var(--ipm-green);
+  border-color: var(--ipm-green);
+  background: rgba(16, 87, 92, 0.04);
+}
+
+/* ---------- Two-column row ---------- */
+.home-why__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: clamp(24px, 3vw, 56px);
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .home-why__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Left: copy ---------- */
+.home-why__copy {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2vh, 28px);
+}
+
+.home-why__eyebrow {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 300;
+  font-synthesis: none;
+  font-size: clamp(14px, 1.25vw, 24px);
+  line-height: 1;
+  color: var(--ipm-grey);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.home-why__title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.05;
+}
+
+.home-why__title-line {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  font-size: clamp(28px, 2.6vw, 50px);
+  line-height: 1.15;
+  color: var(--ipm-green);
+}
+
+.home-why__title-line--accent {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(32px, 3.125vw, 60px);
+  line-height: 1.15;
+  color: var(--ipm-yellow);
+}
+
+.home-why__body {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.6vh, 20px);
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 300;
+  font-synthesis: none;
+  font-size: clamp(14px, 1.04vw, 20px);
+  line-height: 1.55;
+  color: var(--ipm-green);
+  max-width: 58ch;
+}
+
+.home-why__body p {
+  margin: 0;
+}
+
+.home-why__body * {
+  font-weight: 300;
+  font-synthesis: none;
+}
+
+/* ---------- Right: photo frame + floating widgets ---------- */
+.home-why__visual {
+  position: relative;
+  width: 100%;
+  justify-self: end;
+}
+
+/* Frame = outer rounded photo w/ frosted glass overlay — aspect 700:805 */
+.home-why__frame {
+  position: relative;
+  width: 100%;
+  max-width: 700px;
+  aspect-ratio: 700 / 805;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+  margin-left: auto;
+}
+
+.home-why__frame-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* Frosted overlay blurring the whole frame */
+.home-why__frame-glass {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.40);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Inner focus window — shows the photo crisp through the glass.
+   Figma: 331 × 602, positioned centered horizontally in the frame
+   and roughly centered vertically. */
+.home-why__focus {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 47.3%;  /* 331/700 */
+  aspect-ratio: 331 / 602;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.home-why__focus img {
+  position: absolute;
+  inset: 0;
+  width: 182%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  left: -41%;
+  display: block;
+}
+
+/* ---------- Floating glass widgets ---------- */
+/* Each widget is a rounded, blurred glass tile. The title and the chart are
+   absolutely positioned inside using Figma's tile-relative offsets so the
+   composition is pixel-true. */
+.home-why__widget {
+  position: absolute;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.30);
+  -webkit-backdrop-filter: blur(25px);
+  backdrop-filter: blur(25px);
+  color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.home-why__widget-title {
+  position: absolute;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(8px, 0.7vw, 13.5px);
+  line-height: 1;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.home-why__chart {
+  position: absolute;
+}
+
+.home-why__chart img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.home-why__chart-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- Per-widget sizing, placement & inner layout (all from Figma) ---- */
+
+/* IPM Score — tile 120×120 @ (120,67) in 700×805 frame
+   Label @ (24,12), chart @ (12,43) size 100×51.19 */
+.home-why__widget--score {
+  width: 17.14%;   /* 120/700 */
+  aspect-ratio: 120 / 120;
+  top: 8.32%;      /* 67/805 */
+  left: 17.14%;    /* 120/700 */
+}
+.home-why__widget--score .home-why__widget-title {
+  top: 10%;        /* 12/120 */
+  left: 20%;       /* 24/120 */
+}
+.home-why__widget--score .home-why__chart--gauge {
+  top: 35.83%;     /* 43/120 */
+  left: 10%;       /* 12/120 */
+  width: 83.33%;   /* 100/120 */
+  height: 42.66%;  /* 51.19/120 — only the top half of the square SVG is
+                     visible; the bottom half is clipped by overflow:hidden
+                     so the arcs keep their true round shape. */
+  overflow: hidden;
+}
+.home-why__widget--score .home-why__chart--gauge img {
+  width: 100%;
+  height: auto;    /* Preserve the 1:1 SVG aspect; clip via overflow above */
+}
+
+/* Sustainability Profile — tile 234×120 @ (392,170)
+   Label @ (26,15), chart @ (26,47) size 192×46 */
+.home-why__widget--sustainability {
+  width: 28.42%;   /* 234/700 × 0.85 — 15% smaller than Figma */
+  aspect-ratio: 234 / 120;
+  top: 21.12%;     /* 170/805 */
+  left: 61.01%;    /* right-edge kept aligned with Figma (89.43% from left) */
+}
+.home-why__widget--sustainability .home-why__widget-title {
+  top: 12.5%;      /* 15/120 */
+  left: 11.11%;    /* 26/234 */
+}
+.home-why__widget--sustainability .home-why__chart--bars {
+  top: 39.17%;     /* 47/120 */
+  left: 11.11%;    /* 26/234 */
+  width: 82.05%;   /* 192/234 */
+  height: 38.33%;  /* 46/120 */
+  display: flex;
+  align-items: center;
+  gap: 4%;
+}
+.home-why__bar {
+  display: block;
+  height: 55%;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.home-why__bar--sm {
+  aspect-ratio: 1;
+  height: 55%;
+  width: auto;
+  background: rgba(255, 255, 255, 0.55);
+}
+.home-why__bar--md {
+  aspect-ratio: 1;
+  height: 55%;
+  width: auto;
+}
+.home-why__bar--lg { flex: 1; }
+
+/* Lifestyle Index — tile 192×120 @ (28,408)
+   Label @ (13,14), chart @ (14,41) size 167×68 */
+.home-why__widget--lifestyle {
+  width: 27.43%;   /* 192/700 */
+  aspect-ratio: 192 / 120;
+  top: 50.68%;     /* 408/805 */
+  left: 4%;        /* 28/700 */
+}
+.home-why__widget--lifestyle .home-why__widget-title {
+  top: 11.67%;     /* 14/120 */
+  left: 6.77%;     /* 13/192 */
+}
+.home-why__widget--lifestyle .home-why__chart--lifestyle {
+  top: 34.17%;     /* 41/120 */
+  left: 7.29%;     /* 14/192 */
+  width: 86.98%;   /* 167/192 */
+  height: 56.67%;  /* 68/120 */
+}
+
+/* Investment Confidence — tile 337×158 @ (41,593)
+   Label @ (22,14), chart @ (21,47) size 302.6×87 */
+.home-why__widget--investment {
+  width: 48.14%;   /* 337/700 */
+  aspect-ratio: 337 / 158;
+  top: 73.66%;     /* 593/805 */
+  left: 5.86%;     /* 41/700 */
+}
+.home-why__widget--investment .home-why__widget-title {
+  top: 8.86%;      /* 14/158 */
+  left: 6.53%;     /* 22/337 */
+}
+.home-why__widget--investment .home-why__chart--investment {
+  top: 29.75%;     /* 47/158 */
+  left: 6.23%;     /* 21/337 */
+  width: 89.79%;   /* 302.6/337 */
+  height: 55.06%;  /* 87/158 */
+}
+
+/* ---- Responsive: stack the frame under the copy on narrow screens ---- */
+@media (max-width: 900px) {
+  .home-why__frame {
+    margin-left: 0;
+    margin-right: auto;
+  }
+}

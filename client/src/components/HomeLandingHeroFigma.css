@@ -1,0 +1,825 @@
+/*
+ * IPM Home hero — tokens from Figma node 2362:2 (file 984OJRuFBb6aahHyjpEhAP).
+ * Artboard 1920×1079; primary content width 1400px; header strip 75px.
+ * Do not “eyeball” — numbers below mirror the design export.
+ */
+.home-figma {
+  --figma-frame: 1920;
+  /* One shared column — nav inner, title container, and search bar all hit these edges */
+  --figma-content: 1180px;
+  /* Top bar height − 15% (search keeps its own --figma-search-h) */
+  --figma-header-h: 64px;
+  /* Shared nav element size (logo, pill height, gear, icon well) — 40 × 0.85 */
+  --figma-nav-ctrl: 34px;
+
+  --figma-overlay: rgba(16, 87, 92, 0.6);
+
+  --figma-h1-poppins: 80px;
+  --figma-h1-poppins-lh: 80px;
+  --figma-h1-playfair: 85px;
+
+  --figma-subtitle: 36px;
+  --figma-nav: 20px;
+  --figma-placeholder: 24px;
+
+  /* -10% height, border halved; icon circles use 1px instead of 2px */
+  --figma-search-h: 68px;
+  --figma-search-radius: 20px;
+  --figma-search-blur: 5px;
+  --figma-search-bg: rgba(255, 255, 255, 0.2);
+  --figma-search-border: 0.5px;
+  --figma-icon-border: 1px;
+
+  --figma-gap-head-sub: 48px;
+  --figma-gap-sub-search: 48px;
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  /* Video bleed contained on .home-figma__bg; section stays visible so title can scroll if needed */
+  overflow-x: visible;
+  background: #060606;
+  color: #fff;
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+/* === Top bar (header strip 75px; glass from design) ===
+   Tokens are re-declared on the topbar itself so the bar renders identically
+   when embedded in the Home hero (inside `.home-figma`) AND when mounted on
+   Services / Pricing pages outside of that scope. Values mirror `.home-figma`. */
+.home-figma__topbar {
+  --figma-content: 1180px;
+  --figma-header-h: 64px;
+  --figma-nav-ctrl: 34px;
+  --figma-nav: 20px;
+  --figma-search-blur: 5px;
+  --figma-search-bg: rgba(255, 255, 255, 0.2);
+  --figma-icon-border: 1px;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', system-ui, sans-serif;
+  /* Same glass as the search bar */
+  background: var(--figma-search-bg);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(var(--figma-search-blur));
+  backdrop-filter: blur(var(--figma-search-blur));
+  transition: background 220ms ease, box-shadow 220ms ease;
+}
+
+/* ---- Dark text variant: active once the user scrolls past the hero ----
+   Over white/light sections, swap all nav text, icons and the logo tint
+   to IPM green so they stay legible. */
+.home-figma__topbar--dark {
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(var(--figma-search-blur)) saturate(140%);
+  backdrop-filter: blur(var(--figma-search-blur)) saturate(140%);
+}
+
+/* Logo: recolor white PNG to IPM green #10575c via filter */
+.home-figma__topbar--dark .home-figma__logo-img {
+  filter: brightness(0) saturate(100%) invert(28%) sepia(14%) saturate(1940%) hue-rotate(145deg) brightness(92%) contrast(92%);
+}
+
+/* Nav links / CTA labels */
+.home-figma__topbar--dark .home-figma__bar-link,
+.home-figma__topbar--dark .home-figma__user-name {
+  color: #10575c;
+}
+
+/* In dark-bar mode, hover + current-page highlight swap to IPM brand yellow
+   (same accent used for the active state over the hero video). */
+.home-figma__topbar--dark .home-figma__bar-link:hover,
+.home-figma__topbar--dark .home-figma__bar-link:focus-visible,
+.home-figma__topbar--dark .home-figma__bar-link--active {
+  color: #ffc801;
+}
+
+/* Gear button (settings) border + icon */
+.home-figma__topbar--dark .home-figma__gear-slot .nav-settings-trigger {
+  border-color: #10575c;
+  color: #10575c;
+}
+.home-figma__topbar--dark .home-figma__gear-slot .nav-settings-trigger i,
+.home-figma__topbar--dark .home-figma__gear-slot .nav-settings-trigger svg {
+  color: #10575c;
+  fill: #10575c;
+}
+
+/* Hamburger bars */
+.home-figma__topbar--dark .home-figma__menu-bar {
+  background: #10575c;
+}
+.home-figma__topbar--dark .home-figma__menu-close::before,
+.home-figma__topbar--dark .home-figma__menu-close::after {
+  background: #10575c;
+}
+
+/* User pill avatar (if logged in) */
+.home-figma__topbar--dark .home-figma__avatar {
+  background: #10575c;
+  color: #fff;
+}
+
+/* MyIPM pill already reads (green text on yellow bg) — leave untouched */
+
+/*
+ * Single 1400px frame: nav row + hero MUST share identical horizontal math
+ * (one rule block — avoids logo / title / search drifting apart).
+ */
+.home-figma__topbar-inner,
+.home-figma__main {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--figma-content);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: clamp(16px, 4vw, 24px);
+  padding-right: clamp(16px, 4vw, 24px);
+}
+
+@media (min-width: 1200px) {
+  .home-figma__topbar-inner,
+  .home-figma__main {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+.home-figma__topbar-inner {
+  min-height: var(--figma-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.home-figma__brand {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.home-figma__logo-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Logo 60×60 − 15% = 51 */
+.home-figma__logo-img {
+  width: 51px;
+  height: 51px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+}
+
+.home-figma__topbar-end {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+
+.home-figma__bar-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 24px;
+  min-height: var(--figma-nav-ctrl);
+}
+
+/* Figma 2080:1458 — gear 40×40, border 2px white */
+.home-figma__gear-slot {
+  flex-shrink: 0;
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .home-figma__gear-slot {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.home-figma__gear-slot .nav-settings-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.home-figma__gear-slot .nav-settings-trigger {
+  width: var(--figma-nav-ctrl);
+  height: var(--figma-nav-ctrl);
+  min-width: var(--figma-nav-ctrl);
+  padding: 0;
+  border-radius: 50%;
+  border: var(--figma-icon-border) solid #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.home-figma__gear-slot .nav-settings-trigger:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #fff;
+}
+
+.home-figma__gear-slot .nav-settings-trigger i {
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+/* Nav links — lighter than Regular (App.css sets * { font-weight:400 }, so force thin) */
+.home-figma__bar-link {
+  display: none;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 300;
+  font-synthesis: none;
+  font-size: var(--figma-nav);
+  line-height: normal;
+  letter-spacing: 0;
+  color: #fff;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (min-width: 768px) {
+  .home-figma__bar-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--figma-nav-ctrl);
+  }
+}
+
+.home-figma__bar-link:hover {
+  color: #fff;
+}
+
+.home-figma__bar-link--active {
+  color: #ffc801;
+  font-weight: 300;
+}
+
+/* MyIPM pill — height matches --figma-nav-ctrl; proportions preserved */
+.home-figma__cta-myipm {
+  flex-shrink: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: var(--figma-nav-ctrl);
+  min-width: 128px;
+  padding: 0 17px;
+  border-radius: calc(var(--figma-nav-ctrl) / 2);
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: var(--figma-nav);
+  font-weight: 300;
+  font-synthesis: none;
+  letter-spacing: 0;
+  color: #10575c;
+  text-decoration: none;
+  background: #ffb21b;
+  border: none;
+  box-shadow: none;
+  transition: filter 0.15s ease, transform 0.15s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (min-width: 768px) {
+  .home-figma__cta-myipm {
+    display: inline-flex;
+    margin-left: 0;
+  }
+}
+
+.home-figma__cta-myipm:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+
+/* Hamburger — hit area height matches other nav controls */
+.home-figma__menu-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: var(--figma-nav-ctrl);
+  margin-left: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-figma__menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home-figma__menu-bars {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  width: 19px;
+  height: var(--figma-nav-ctrl);
+  gap: 7px;
+  box-sizing: border-box;
+}
+
+.home-figma__menu-bar {
+  display: block;
+  height: 1px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 0.5px;
+}
+
+.home-figma__menu-close {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.home-figma__menu-close::before,
+.home-figma__menu-close::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 0.5px;
+}
+
+.home-figma__menu-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.home-figma__menu-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.home-figma__user-wrap {
+  position: relative;
+  display: none;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .home-figma__user-wrap {
+    display: flex;
+    align-items: center;
+    margin-left: 0;
+  }
+}
+
+.home-figma__user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  max-width: 200px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.home-figma__user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .home-figma__cta-myipm {
+    display: inline-flex;
+    height: var(--figma-nav-ctrl);
+    min-width: 128px;
+    padding: 0 14px;
+    font-size: var(--figma-nav);
+    font-weight: 300;
+    border-radius: calc(var(--figma-nav-ctrl) / 2);
+  }
+
+  .home-figma__gear-slot,
+  .home-figma__bar-link {
+    display: none !important;
+  }
+
+  .home-figma__user-wrap {
+    display: block;
+  }
+
+  .home-figma__bar-cluster {
+    gap: 12px;
+  }
+}
+
+.home-figma__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.home-figma__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  padding: 8px 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  z-index: 60;
+}
+
+.home-figma__dropdown a,
+.home-figma__dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: #11575c;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.home-figma__dropdown a:hover,
+.home-figma__dropdown button:hover {
+  background: #f0fdfa;
+}
+
+.home-figma__dropdown .logout-item {
+  color: #b91c1c;
+}
+
+.home-figma__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.home-figma__bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+/* Figma 2077:1257 — teal overlay rgba(16,87,92,0.6) */
+.home-figma__bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--figma-overlay);
+  pointer-events: none;
+}
+
+.home-figma__bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, transparent 35%, rgba(0, 0, 0, 0.25) 100%);
+  pointer-events: none;
+}
+
+/*
+ * Hero column fills viewport. Title+subtitle sit in the middle; search is absolutely
+ * placed at 15% from the bottom so it’s anchored regardless of text block height.
+ */
+.home-figma__main {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  container-type: inline-size;
+  container-name: home-hero;
+  padding-top: var(--figma-header-h);
+  padding-bottom: 0;
+  text-align: center;
+}
+
+.home-figma__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/*
+ * One sentence, centered. cqw is % of container width — large coefficients (e.g. 11cqw) become ~150px+ and clip “Reinvented.”
+ * Keep max ~64px and ~4.5cqw so the full line stays inside the 1400px track with the search bar.
+ */
+.home-figma__headline {
+  margin: 0 0 clamp(16px, 2.5vh, 28px);
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  font-weight: 200;
+  text-align: center;
+  box-sizing: border-box;
+  overflow: visible;
+  /* −2.5% from previous sizing to tuck the right edge inside the search border */
+  font-size: clamp(23px, min(4.095vw, 6.045cqw), 72px);
+  line-height: 1.05;
+}
+
+.home-figma__headline-sentence {
+  display: inline-block;
+  white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.home-figma__headline-plain {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-size: 1em;
+  letter-spacing: 0;
+  color: #fff;
+}
+
+.home-figma__headline-accent {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.0625em;
+  line-height: inherit;
+  color: #ffc802;
+}
+
+/* Figma 2080:1553 — Poppins ExtraLight 36px, centered, max w 1394 */
+.home-figma__tagline {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1394px;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  /* Half of headline − 10% */
+  font-size: clamp(10.35px, min(1.843vw, 2.72cqw), 32.4px);
+  line-height: normal;
+  color: #fff;
+  font-synthesis: none;
+  text-align: center;
+}
+
+.home-figma__tagline *,
+.home-figma__tagline strong,
+.home-figma__tagline b {
+  font-weight: 200;
+  font-synthesis: none;
+}
+
+/* Force two lines — no mid-span wrapping, only the explicit <br> splits */
+.home-figma__tagline-line {
+  display: inline;
+  white-space: nowrap;
+}
+
+.home-figma__tagline-line--second {
+  display: inline;
+  white-space: nowrap;
+}
+
+.home-figma__tagline-hit {
+  font-weight: 200;
+  color: #fff;
+}
+
+/* Search anchored 15% from the bottom of the viewport, same column width as nav + title */
+.home-figma__search {
+  position: absolute;
+  left: 50%;
+  bottom: 15vh;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--figma-content);
+  padding-left: clamp(16px, 4vw, 24px);
+  padding-right: clamp(16px, 4vw, 24px);
+  box-sizing: border-box;
+  margin: 0;
+}
+
+@media (min-width: 1200px) {
+  .home-figma__search {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+.home-figma__search-inner {
+  /* Shared circle/glyph tokens so the three circles (search, pin, mic) scale
+     together as the viewport narrows. Keeps the bar on ONE line at any width. */
+  --figma-search-circle: clamp(30px, 4.4vw, 40px);
+  --figma-search-glyph: clamp(16px, 2.6vw, 25px);
+
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  /* Gap + horizontal padding shrink on narrow viewports so the input keeps
+     breathing room alongside the circles and everything stays on one line. */
+  gap: clamp(6px, 1.3vw, 16px);
+  height: var(--figma-search-h);
+  min-height: var(--figma-search-h);
+  padding: 0 clamp(8px, 1.4vw, 16px) 0 clamp(10px, 1.7vw, 20px);
+  border-radius: var(--figma-search-radius);
+  border: var(--figma-search-border) solid #fff;
+  background: var(--figma-search-bg);
+  -webkit-backdrop-filter: blur(var(--figma-search-blur));
+  backdrop-filter: blur(var(--figma-search-blur));
+  box-sizing: border-box;
+}
+
+.home-figma__search-icon-slot {
+  flex-shrink: 0;
+  width: var(--figma-search-circle);
+  height: var(--figma-search-circle);
+  border-radius: 50%;
+  border: var(--figma-icon-border) solid #fff;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-figma__search-icon-img {
+  display: block;
+  width: var(--figma-search-glyph);
+  height: var(--figma-search-glyph);
+  object-fit: contain;
+}
+
+/* Figma 2080:1467 — placeholder Poppins Light Italic 24px */
+.home-figma__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: min(var(--figma-placeholder), calc(var(--figma-placeholder) * (100vw / var(--figma-frame))));
+  font-style: italic;
+  font-weight: 300;
+  color: #fff;
+}
+
+.home-figma__search-input::placeholder {
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 1;
+}
+
+.home-figma__search-actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1vw, 12px);
+  flex-shrink: 0;
+}
+
+.home-figma__icon-btn {
+  width: var(--figma-search-circle);
+  height: var(--figma-search-circle);
+  min-width: var(--figma-search-circle);
+  padding: 0;
+  border-radius: 50%;
+  border: var(--figma-icon-border) solid #fff;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background 0.15s ease;
+}
+
+.home-figma__icon-btn-img {
+  display: block;
+  width: var(--figma-search-glyph);
+  height: var(--figma-search-glyph);
+  object-fit: contain;
+}
+
+.home-figma__icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.home-figma-drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 90;
+}
+
+.home-figma-drawer-overlay.open {
+  display: block;
+}
+
+.home-figma-drawer {
+  display: none;
+  position: fixed;
+  /* Fallback matches `.home-figma__topbar` --figma-header-h so the drawer works
+     on pages where the drawer is not a descendant of `.home-figma` (Services, Pricing). */
+  top: var(--figma-header-h, 64px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #11575c;
+  z-index: 95;
+  flex-direction: column;
+  padding: 24px 20px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.home-figma-drawer.open {
+  display: flex;
+}
+
+.home-figma-drawer a,
+.home-figma-drawer button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.home-figma-drawer a:hover,
+.home-figma-drawer button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.home-figma-drawer .mobile-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 8px 0;
+}
+
+@media (max-width: 640px) {
+  .home-figma__search-inner {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 0;
+    padding: 14px 14px 14px 16px;
+    gap: 12px;
+  }
+
+  .home-figma__search-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

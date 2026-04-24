@@ -1,0 +1,267 @@
+/*
+ * Section 5 — Stakeholders (Figma node 2380:8).
+ *
+ * Values from Figma:
+ *   Section 1920 × 901, photo background w/ dark scrim
+ *   Title (line 1)  Poppins ExtraLight 50/80, white
+ *   Title (line 2)  Playfair Display Medium Italic 60/80, white
+ *   Eyebrow         Poppins Light 24, white
+ *   Bottom caption  Poppins ExtraLight 50, white (centered)
+ *   Cards 250 × 280, radius 20, backdrop-blur 15
+ *     Front: bg rgba(255,255,255,0.40), icon in white circle 132,
+ *            label Poppins Light 32 white
+ *     Back:  bg rgba(255,255,255,0.85), feature list Poppins Light 20,
+ *            color IPM green #10575c
+ */
+.home-stakeholders {
+  --ipm-green: #10575c;
+  --figma-content-w: 1180px;
+  --figma-gutter: clamp(16px, 4vw, 24px);
+
+  /* Card geometry */
+  --card-radius: 20px;
+  --card-aspect: 250 / 280;
+
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: #ffffff;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+/* ---------- Background ---------- */
+.home-stakeholders__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.home-stakeholders__bg-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* Lighter teal overlay — matches Section 3 (carousel) scrim. */
+.home-stakeholders__bg-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 87, 92, 0.30);
+}
+
+/* ---------- Inner layout ---------- */
+.home-stakeholders__inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--figma-content-w);
+  margin: 0 auto;
+  padding: clamp(48px, 8vh, 96px) var(--figma-gutter);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 5vh, 56px);
+}
+
+@media (min-width: 1200px) {
+  .home-stakeholders__inner {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* ---------- Header ---------- */
+.home-stakeholders__header {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.5vh, 20px);
+  text-align: left;
+}
+
+.home-stakeholders__eyebrow {
+  font-weight: 300;
+  font-synthesis: none;
+  font-size: clamp(14px, 1.25vw, 24px);
+  line-height: 1;
+  letter-spacing: 0;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.home-stakeholders__title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.05;
+}
+
+.home-stakeholders__title-line {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  font-size: clamp(28px, 2.6vw, 50px);
+  line-height: 1.15;
+  color: #ffffff;
+}
+
+.home-stakeholders__title-line--accent {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(32px, 3.125vw, 60px);
+  line-height: 1.15;
+}
+
+/* ---------- Grid of cards ---------- */
+.home-stakeholders__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(14px, 1.5vw, 28px);
+}
+
+@media (max-width: 900px) {
+  .home-stakeholders__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .home-stakeholders__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Card shell ----------
+   The actual glass (blur + tint) is painted by a ::before on this wrapper,
+   NOT on the flip-card faces. The flip card's inner has `preserve-3d`
+   which kills backdrop-filter in Chrome/Safari. Painting the glass on the
+   outer card (which only has `perspective`, not preserve-3d) keeps the
+   filter in a normal 2D stacking context so it renders correctly. */
+.home-stakeholders__card {
+  aspect-ratio: var(--card-aspect);
+  border-radius: var(--card-radius);
+  position: relative;
+}
+
+.home-stakeholders__card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Exact recipe from the top nav bar (and search bar): */
+  background: rgba(255, 255, 255, 0.20);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.home-stakeholders__card .home-flip-card__face {
+  border-radius: var(--card-radius);
+  overflow: hidden;
+  /* Faces sit above the glass pane */
+  z-index: 1;
+}
+
+/* ---------- Faces (shared) ---------- */
+.home-stakeholders__face {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(16px, 1.8vw, 28px);
+}
+
+/* Front face is transparent — the glass pane on .home-stakeholders__card
+   shows through it. Back face is opaque white and covers the glass when flipped. */
+.home-stakeholders__face--front {
+  background: transparent;
+  justify-content: center;
+  gap: clamp(14px, 2vh, 22px);
+}
+
+/* Circle behind the icon — 10% more opaque than the tile (0.30 vs 0.20)
+   so it clearly reads as a disc against the frosted glass. */
+.home-stakeholders__icon-wrap {
+  width: clamp(70px, 9vw, 132px);
+  height: clamp(70px, 9vw, 132px);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.30);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.home-stakeholders__icon {
+  width: 50%;
+  height: 50%;
+  object-fit: contain;
+  /* Force the downloaded Figma assets to render pure white — the source PNGs
+     are already white-ish but a filter guarantees crisp white on any tint. */
+  filter: brightness(0) invert(1);
+}
+
+.home-stakeholders__label {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 300;
+  font-synthesis: none;
+  font-size: clamp(18px, 1.67vw, 32px);
+  line-height: 1;
+  color: #ffffff;
+  text-align: center;
+}
+
+/* Back face — near-opaque white, feature list in teal */
+.home-stakeholders__face--back {
+  background: rgba(255, 255, 255, 0.85);
+  justify-content: center;
+}
+
+.home-stakeholders__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4px, 0.6vh, 8px);
+  text-align: center;
+  width: 100%;
+}
+
+.home-stakeholders__feature {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 300;
+  font-synthesis: none;
+  font-size: clamp(12px, 1.04vw, 20px);
+  line-height: 1.25;
+  color: var(--ipm-green);
+}
+
+/* ---------- Bottom caption ---------- */
+.home-stakeholders__caption {
+  margin: 0;
+  text-align: center;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: clamp(20px, 2.6vw, 50px);
+  line-height: 1.15;
+  color: #ffffff;
+}

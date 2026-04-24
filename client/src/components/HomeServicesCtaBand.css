@@ -1,0 +1,49 @@
+/*
+ * Thin CTA band used between home-page sections.
+ *
+ * Vertical padding is split equally top/bottom so the button is visually
+ * centered in the whitespace that forms between the preceding and following
+ * sections. Background is white to match the features section it follows.
+ */
+.home-services-cta-band {
+  --ipm-green: #10575c;
+  --ipm-grey: #c2c3c3;
+
+  width: 100%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 3vh, 40px) clamp(16px, 4vw, 24px);
+  box-sizing: border-box;
+}
+
+/* Button matches the Why-IPM "View IPM Services" size + style exactly. */
+.home-services-cta-band__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: clamp(41px, 4.68vw, 64px);
+  padding: 0 clamp(28px, 3vw, 48px);
+  border-radius: 20px;
+  border: 2px solid var(--ipm-grey);
+  background: transparent;
+  color: var(--ipm-grey);
+  text-decoration: none;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(15px, 1.04vw, 20px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+.home-services-cta-band__btn:hover {
+  color: var(--ipm-green);
+  border-color: var(--ipm-green);
+  background: rgba(16, 87, 92, 0.04);
+}

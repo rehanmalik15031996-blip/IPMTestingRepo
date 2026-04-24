@@ -1,0 +1,294 @@
+/*
+ * Section 7 — "Get in touch" (Figma node 2382:11).
+ *
+ * Figma desktop artboard: 1922 × 817
+ *   Gutter (left edge → copy):  343 px
+ *   Card:                        700 × 580, rgba(255,255,255,0.2), blur 15, radius 20
+ *   Input:                       40 px tall, radius 20, 2px white border, 14 px text
+ *   Message area:                266 tall (total card grid)
+ *   Submit (Send an inquiry):    617 × 40, rgba orange #ffb21b, green text
+ *   GDPR note:                   Poppins Light 16, centered below card
+ *   Scrim over photo:            rgba(16, 87, 92, 0.6)
+ */
+.home-get-in-touch {
+  --ipm-green: #10575c;
+  --ipm-yellow: #ffc802;
+  --ipm-orange: #ffb21b;
+
+  --figma-content-w: 1180px;
+  --figma-gutter: clamp(16px, 4vw, 24px);
+
+  position: relative;
+  width: 100%;
+  color: #ffffff;
+  font-family: 'Poppins', system-ui, sans-serif;
+  box-sizing: border-box;
+  padding: clamp(56px, 9vh, 120px) var(--figma-gutter);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+@media (min-width: 1200px) {
+  .home-get-in-touch {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* ---------- Background photo + teal scrim ---------- */
+.home-get-in-touch__bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.home-get-in-touch__bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.home-get-in-touch__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(16, 87, 92, 0.6);
+}
+
+/* ---------- Two-column layout ---------- */
+.home-get-in-touch__inner {
+  width: 100%;
+  max-width: var(--figma-content-w);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 72px);
+}
+
+@media (max-width: 900px) {
+  .home-get-in-touch__inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Left: copy ---------- */
+.home-get-in-touch__copy {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vh, 32px);
+  color: #ffffff;
+}
+
+.home-get-in-touch__eyebrow {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: clamp(14px, 1.25vw, 24px);
+  line-height: 1;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.home-get-in-touch__title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.05;
+}
+
+.home-get-in-touch__title-line {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  font-size: clamp(28px, 2.6vw, 50px);
+  line-height: 1.15;
+  color: #ffffff;
+}
+
+.home-get-in-touch__title-line--accent {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(32px, 3.125vw, 60px);
+  line-height: 1.15;
+  color: var(--ipm-yellow);
+}
+
+.home-get-in-touch__body {
+  margin: 0;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: clamp(16px, 1.45vw, 28px);
+  line-height: 1.35;
+  color: #ffffff;
+  max-width: 32ch;
+}
+
+.home-get-in-touch__body * {
+  font-weight: 200;
+  font-synthesis: none;
+}
+
+.home-get-in-touch__cta-wrap {
+  margin-top: clamp(8px, 1vh, 16px);
+}
+
+/* Button matches the "View IPM Services" button used in the Why-IPM section. */
+.home-get-in-touch__cta {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: clamp(41px, 4.68vw, 64px);
+  padding: 0 clamp(28px, 3vw, 48px);
+  border-radius: 20px;
+  border: 2px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(15px, 1.04vw, 20px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+.home-get-in-touch__cta:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- Right: form column = card + GDPR note below ---------- */
+.home-get-in-touch__form-col {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.4vh, 16px);
+  width: 100%;
+  max-width: 700px;
+  margin-left: auto;
+}
+
+.home-get-in-touch__card {
+  position: relative;
+  width: 100%;
+  padding: clamp(20px, 2.4vw, 34px);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.20);
+  -webkit-backdrop-filter: blur(15px);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 1.8vh, 22px);
+  box-sizing: border-box;
+}
+
+.home-get-in-touch__row--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 1.2vw, 20px);
+}
+
+.home-get-in-touch__field {
+  display: block;
+}
+
+.home-get-in-touch__field input,
+.home-get-in-touch__field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid #ffffff;
+  border-radius: 20px;
+  background: transparent;
+  color: #ffffff;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 16px;
+  height: 40px;
+  outline: none;
+  appearance: none;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+
+.home-get-in-touch__field textarea {
+  height: auto;
+  min-height: 200px;
+  padding: 12px 16px;
+  line-height: 1.4;
+  resize: vertical;
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.home-get-in-touch__field input::placeholder,
+.home-get-in-touch__field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 400;
+}
+
+.home-get-in-touch__field input:focus,
+.home-get-in-touch__field textarea:focus {
+  border-color: var(--ipm-yellow);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home-get-in-touch__submit {
+  appearance: none;
+  width: 100%;
+  height: 40px;
+  border: none;
+  border-radius: 20px;
+  background: var(--ipm-orange);
+  color: var(--ipm-green);
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 600;
+  font-synthesis: none;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 200ms ease, transform 120ms ease, opacity 200ms ease;
+}
+
+.home-get-in-touch__submit:hover:not(:disabled) {
+  background: #ffc040;
+}
+
+.home-get-in-touch__submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.home-get-in-touch__submit:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.home-get-in-touch__gdpr {
+  margin: 0;
+  text-align: center;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 300;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #ffffff;
+  opacity: 0.95;
+}
