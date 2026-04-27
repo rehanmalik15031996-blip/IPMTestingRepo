@@ -4,6 +4,7 @@ import api from '../config/api';
 import CommsPanel from './CommsPanel';
 import NotificationPanel from './NotificationPanel';
 import downloadDashboardPdf from '../utils/downloadDashboardPdf';
+import { useSidebar } from '../context/SidebarContext';
 
 const dashboardHomePath = (user) => {
     const r = String(user?.role || '').toLowerCase();
@@ -23,6 +24,7 @@ const RED_DOT = {
 
 const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchSubmit, isAgentOrAgency }) => {
     const navigate = useNavigate();
+    const { setMobileOpen } = useSidebar();
     const [addOpen, setAddOpen] = useState(false);
     const [commsOpen, setCommsOpen] = useState(false);
     const [bellOpen, setBellOpen] = useState(false);
@@ -241,6 +243,15 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
                     </Link>
                 </div>
             </div>
+            <button
+                type="button"
+                className="dash-split-topbar__menu-btn"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open navigation menu"
+                title="Menu"
+            >
+                <i className="fas fa-bars" aria-hidden />
+            </button>
             <CommsPanel
                 open={commsOpen}
                 onClose={() => { setCommsOpen(false); pollUnread(); }}
