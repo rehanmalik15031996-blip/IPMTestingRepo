@@ -4,6 +4,18 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import api from '../config/api';
 import LogoLoading from '../components/LogoLoading';
 import { usePreferences, convertCurrency } from '../context/PreferencesContext';
+import { getDemoState } from '../components/DemoModeBar';
+import enterpriseDemoData from '../data/enterpriseDemoData';
+
+// Returns the canned enterprise demo data when an admin is previewing the
+// enterprise dashboard via the "Demo Dashboards" launcher, or null otherwise.
+// The demo user typically has no real listings/franchises, so this lets us
+// drive the UI from a rich illustrative dataset for sales pitches.
+const getDemoOverride = () => {
+    const ds = getDemoState();
+    if (ds && ds.selectedRole === 'enterprise') return enterpriseDemoData;
+    return null;
+};
 
 const FONT = "'Poppins', sans-serif";
 const GAP = { section: 14, card: 16 };
@@ -172,7 +184,7 @@ const renderDashboard = (isMobile, data, fmtVal) => {
         { label: 'Active Branches', value: String(totalBranches) },
         { label: 'Network Agents', value: String(s.totalAgents || 0) },
         { label: 'Network GTV [MTD]', value: fmtVal(s.totalRevenue || 0) },
-        { label: 'Royalties [MTD]', value: '—' }
+        { label: 'Royalties [MTD]', value: s.totalRoyalties ? fmtVal(s.totalRoyalties) : '—' }
     ];
 
     const mapPins = countries
@@ -185,7 +197,7 @@ const renderDashboard = (isMobile, data, fmtVal) => {
 
     return (
         <>
-            <InsightsBanner text="Suggestions based on platform activity..." />
+            <InsightsBanner text={data?.auraBanners?.dashboard || 'Suggestions based on platform activity...'} />
 
             <KpiSection isMobile={isMobile} cards={kpis} />
 
@@ -253,10 +265,33 @@ const renderDashboard = (isMobile, data, fmtVal) => {
                 <article style={{ ...card, padding: GAP.card, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 }}>
                         <h3 style={cardHeading}>Network Alerts</h3>
+                        {(data?.networkAlerts || []).length > 0 && (
+                            <span style={{ background: '#FFCFC5', color: '#A4260E', borderRadius: 20, fontSize: FONT_SIZE.small, padding: '3px 10px', fontWeight: 700 }}>
+                                {data.networkAlerts.length} active
+                            </span>
+                        )}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                        <p style={{ color: '#8B8F94', fontSize: FONT_SIZE.sub }}>No alerts at this time.</p>
-                    </div>
+                    {(data?.networkAlerts || []).length === 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <p style={{ color: '#8B8F94', fontSize: FONT_SIZE.sub }}>No alerts at this time.</p>
+                        </div>
+                    ) : (
+                        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 0, flex: 1 }}>
+                            {data.networkAlerts.map((alert, i) => {
+                                const isUrgent = alert.tone === 'urgent';
+                                const pillBg = isUrgent ? '#FFCFC5' : 'rgba(231,161,26,0.22)';
+                                const pillFg = isUrgent ? '#A4260E' : '#8A5F0A';
+                                return (
+                                    <li key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 0', borderTop: i ? '1px solid #F1F2F4' : 'none' }}>
+                                        <span style={{ background: pillBg, color: pillFg, borderRadius: 20, padding: '2px 9px', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap', flexShrink: 0, marginTop: 1 }}>
+                                            {alert.label || (isUrgent ? 'Urgent' : 'Action')}
+                                        </span>
+                                        <span style={{ fontSize: FONT_SIZE.sub, color: '#384046', lineHeight: 1.45 }}>{alert.text}</span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
                 </article>
             </section>
 
@@ -271,13 +306,43 @@ const renderDashboard = (isMobile, data, fmtVal) => {
                     </div>
                     <div style={{ flex: 1, padding: '0 16px 12px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, fontSize: 9, color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', padding: '8px 0 6px', borderBottom: '1px solid #F1F2F4', letterSpacing: '0.02em' }}>
-                            <span>Branch → Franchise <span style={{ color: '#C9951C' }}>3%</span></span>
-                            <span>Franchise → Country <span style={{ color: '#C9951C' }}>5%</span></span>
-                            <span>Country → Global HQ <span style={{ color: '#C9951C' }}>1.5%</span></span>
+                            <span>Branch → Franchise <span style={{ color: '#C9951C' }}>{(data?.royaltyDefaults?.branchToFranchise ?? 3)}%</span></span>
+                            <span>Franchise → Country <span style={{ color: '#C9951C' }}>{(data?.royaltyDefaults?.franchiseToCountry ?? 5)}%</span></span>
+                            <span>Country → Global HQ <span style={{ color: '#C9951C' }}>{(data?.royaltyDefaults?.countryToHq ?? 1.5)}%</span></span>
                         </div>
-                        <div style={{ padding: '24px 0', textAlign: 'center', color: '#8B8F94', fontSize: FONT_SIZE.sub }}>
-                            No royalty flow data available yet.
-                        </div>
+                        {(() => {
+                            const royaltyRows = (data?.performanceByFranchise || [])
+                                .filter((f) => (f.royalties?.total || 0) > 0)
+                                .sort((a, b) => (b.royalties?.total || 0) - (a.royalties?.total || 0))
+                                .slice(0, 6);
+                            if (royaltyRows.length === 0) {
+                                return (
+                                    <div style={{ padding: '24px 0', textAlign: 'center', color: '#8B8F94', fontSize: FONT_SIZE.sub }}>
+                                        No royalty flow data available yet.
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                                    {royaltyRows.map((f) => {
+                                        const meta = getCountryMeta(f.country);
+                                        return (
+                                            <div key={f._id || f.name} style={{ padding: '8px 0', borderBottom: '1px solid #F1F2F4' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                                    {meta.flag && <img src={meta.flag} alt="" style={{ width: 16, height: 11, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />}
+                                                    <span style={{ fontSize: FONT_SIZE.sub, fontWeight: 600, color: '#060606', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                                                </div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#C9951C' }}>{fmtVal(f.royalties?.branchToFranchise || 0)}</span>
+                                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#C9951C' }}>{fmtVal(f.royalties?.franchiseToCountry || 0)}</span>
+                                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#C9951C' }}>{fmtVal(f.royalties?.countryToHq || 0)}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
                     </div>
                 </article>
 
@@ -317,10 +382,14 @@ const renderDashboard = (isMobile, data, fmtVal) => {
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'center', minWidth: 55 }}>
-                                        <div style={{ fontSize: FONT_SIZE.sub, fontWeight: 700, color: '#060606' }}>—</div>
+                                        <div style={{ fontSize: FONT_SIZE.sub, fontWeight: 700, color: c.compliance >= 95 ? '#0F8453' : c.compliance >= 90 ? '#C9951C' : c.compliance != null ? '#A4260E' : '#060606' }}>
+                                            {c.compliance != null ? `${c.compliance}%` : '—'}
+                                        </div>
                                     </div>
                                     <div style={{ textAlign: 'right', minWidth: 50 }}>
-                                        <div style={{ fontSize: FONT_SIZE.sub, fontWeight: 700, color: '#C9951C' }}>—</div>
+                                        <div style={{ fontSize: FONT_SIZE.sub, fontWeight: 700, color: '#C9951C' }}>
+                                            {c.royaltiesMtd ? fmtVal(c.royaltiesMtd) : '—'}
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -365,7 +434,7 @@ const renderCountry = (isMobile, data, fmtVal) => {
 
     return (
     <>
-        <InsightsBanner text="Suggestions based on platform activity..." />
+        <InsightsBanner text={data?.auraBanners?.country || 'Suggestions based on platform activity...'} />
         <KpiSection isMobile={isMobile} cards={buildCountryKpis(s, countries, fmtVal)} />
 
         <section style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: GAP.section, marginBottom: GAP.section }}>
@@ -470,7 +539,7 @@ const renderFranchise = (isMobile, data, fmtVal) => {
 
     return (
     <>
-        <InsightsBanner text="Suggestions based on platform activity..." />
+        <InsightsBanner text={data?.auraBanners?.franchise || 'Suggestions based on platform activity...'} />
         <KpiSection isMobile={isMobile} cards={buildFranchiseKpis(s, branches, defaults, fmtVal)} valueColors={{ 'Royalties Due': '#E7A11A' }} />
 
         <section style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: GAP.section }}>
@@ -579,7 +648,7 @@ const renderBranch = (isMobile, data, fmtVal) => {
 
     return (
     <>
-        <InsightsBanner text="Suggestions based on platform activity..." />
+        <InsightsBanner text={data?.auraBanners?.branch || 'Suggestions based on platform activity...'} />
         <KpiSection isMobile={isMobile} cards={buildBranchKpis(s, agents, branches, defaults, fmtVal)} valueColors={{ 'Commission Due (MTD)': '#E7A11A' }} />
 
         <section style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: GAP.section }}>
@@ -679,7 +748,7 @@ const renderRoyalty = (isMobile, data, fmtVal) => {
 
     return (
         <>
-            <InsightsBanner text="Suggestions based on platform activity..." />
+            <InsightsBanner text={data?.auraBanners?.royalty || 'Suggestions based on platform activity...'} />
 
             <section style={{ ...card, padding: 12, marginBottom: GAP.section, background: '#EBEBEB', border: 'none', boxShadow: 'none' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
@@ -863,13 +932,21 @@ const regulatoryFrameworks = [
     { name: 'eIDAS (eSignature)', detail: 'Active', tone: 'ok' }
 ];
 
-const renderCompliance = (isMobile) => (
+const renderCompliance = (isMobile, data) => {
+    const c = data?.compliance || {};
+    const kpis = c.kpis || complianceKpis;
+    const issues = c.criticalIssues || criticalIssues;
+    const byMarket = c.byMarket || complianceByMarket;
+    const vaultRows = c.vaultReviews || vaultReviewRows;
+    const frameworks = c.frameworks || regulatoryFrameworks;
+    const criticalCount = issues.filter((i) => /resolve|submit/i.test(i.action || '')).length || issues.length;
+    return (
     <>
-        <InsightsBanner text="Suggestions based on platform activity, vault signals, and regulatory calendars." />
+        <InsightsBanner text={data?.auraBanners?.compliance || 'Suggestions based on platform activity, vault signals, and regulatory calendars.'} />
 
         <section style={{ ...card, padding: 12, marginBottom: GAP.section, background: '#EBEBEB', border: 'none', boxShadow: 'none' }}>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 8 }}>
-                {complianceKpis.map((k) => (
+                {kpis.map((k) => (
                     <article key={k.label} style={{ background: '#fff', borderRadius: 16, padding: '10px 12px 9px', overflow: 'hidden' }}>
                         <div style={{ fontSize: FONT_SIZE.kpiLabel, color: '#4E4E4E', textTransform: 'uppercase', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
                         <div style={{ fontSize: FONT_SIZE.kpiValue, lineHeight: 1.1, fontWeight: 600, color: k.variant === 'danger' ? '#A4260E' : '#10575C', margin: '6px 0 6px' }}>{k.value}</div>
@@ -883,10 +960,10 @@ const renderCompliance = (isMobile) => (
             <article style={{ ...card, padding: GAP.card }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: GAP.section }}>
                     <h2 style={sectionHeading}>Critical compliance issues</h2>
-                    <span style={{ background: '#FFCFC5', color: '#A4260E', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, padding: '5px 14px', whiteSpace: 'nowrap' }}>3 Critical</span>
+                    <span style={{ background: '#FFCFC5', color: '#A4260E', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, padding: '5px 14px', whiteSpace: 'nowrap' }}>{criticalCount} Critical</span>
                 </div>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 0 }}>
-                    {criticalIssues.map((row, idx) => (
+                    {issues.map((row, idx) => (
                         <li key={row.who} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 0', borderTop: idx ? '1px solid #F1F2F4' : 'none', fontSize: FONT_SIZE.body }}>
                             <div style={{ minWidth: 0 }}>
                                 <div style={{ fontWeight: 600, color: '#060606' }}>{row.who}</div>
@@ -901,8 +978,8 @@ const renderCompliance = (isMobile) => (
             <article style={{ ...card, padding: GAP.card }}>
                 <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>Compliance by market</h2>
                 <div style={{ display: 'grid', gap: 12 }}>
-                    {complianceByMarket.map((m) => (
-                        <div key={m.code} style={{ display: 'grid', gridTemplateColumns: '72px 1fr 44px', alignItems: 'center', gap: 12 }}>
+                    {byMarket.map((m) => (
+                        <div key={m.code} style={{ display: 'grid', gridTemplateColumns: '92px 1fr 44px', alignItems: 'center', gap: 12 }}>
                             <span style={{ fontSize: FONT_SIZE.body, fontWeight: 600, color: '#384046' }}>{m.label}</span>
                             <div style={{ height: 6, background: '#ECEEF2', borderRadius: 20, overflow: 'hidden' }}>
                                 <div style={{ width: `${m.pct}%`, height: '100%', borderRadius: 20, background: 'linear-gradient(90deg, #10575C, #1a7a80)' }} />
@@ -927,7 +1004,7 @@ const renderCompliance = (isMobile) => (
                             </tr>
                         </thead>
                         <tbody>
-                            {vaultReviewRows.map((r) => (
+                            {vaultRows.map((r) => (
                                 <tr key={r.doc} style={{ borderBottom: '1px solid #F1F2F4' }}>
                                     <td style={{ padding: '12px 8px', color: '#060606', fontWeight: 600, maxWidth: 200 }}>{r.doc}</td>
                                     <td style={{ padding: '12px 8px', color: '#384046' }}>{r.market}</td>
@@ -949,11 +1026,11 @@ const renderCompliance = (isMobile) => (
             <article style={{ ...card, padding: GAP.card }}>
                 <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>Active regulatory frameworks</h2>
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 0 }}>
-                    {regulatoryFrameworks.map((f, idx) => (
+                    {frameworks.map((f, idx) => (
                         <li key={f.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 0', borderTop: idx ? '1px solid #F1F2F4' : 'none', fontSize: FONT_SIZE.body }}>
                             <span style={{ fontWeight: 600, color: '#060606' }}>{f.name}</span>
                             {f.tone === 'ok'
-                                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#10575C', fontWeight: 700, fontSize: FONT_SIZE.body }}><i className="fas fa-check-circle" aria-hidden /> Active</span>
+                                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#10575C', fontWeight: 700, fontSize: FONT_SIZE.body }}><i className="fas fa-check-circle" aria-hidden /> {f.detail || 'Active'}</span>
                                 : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#A65F0A', fontWeight: 700, fontSize: FONT_SIZE.body }}><i className="fas fa-exclamation-triangle" aria-hidden /> {f.detail}</span>
                             }
                         </li>
@@ -962,7 +1039,8 @@ const renderCompliance = (isMobile) => (
             </article>
         </section>
     </>
-);
+    );
+};
 
 const portalKpis = [
     { label: 'Total Listings Live', value: '4,294', delta: '+8 new today', variant: 'teal' },
@@ -1007,15 +1085,25 @@ const portalStatusPill = (status) => {
     return { label: 'Pending', bg: 'rgba(107,114,128,0.16)', color: '#4B5563' };
 };
 
-const renderPortalSyndication = (isMobile) => {
-    const maxListings = Math.max(...portalListingsByMarket.map((m) => m.count), 1);
+const renderPortalSyndication = (isMobile, data) => {
+    const p = data?.portal || {};
+    const kpiCards = p.kpis || portalKpis;
+    const portals = p.portals || portalStatusRows;
+    const pendingActions = p.pendingActions || portalPendingActions;
+    const listingsByMarket = p.byMarket || portalListingsByMarket;
+    const aiFeatures = p.aiFeatures || portalAiFeatures;
+    const maxListings = Math.max(...listingsByMarket.map((m) => m.count || 0), 1);
+    const pendingCount = pendingActions.reduce((sum, a) => {
+        const match = (a.detail || '').match(/(\d+)\s+(?:UAE|UK|Japanese|listings)/i);
+        return sum + (match ? parseInt(match[1], 10) : 1);
+    }, 0);
     return (
         <>
-            <InsightsBanner text="Suggestions based on platform activity, portal health, and syndication queues." />
+            <InsightsBanner text={data?.auraBanners?.portal || 'Suggestions based on platform activity, portal health, and syndication queues.'} />
 
             <section style={{ ...card, padding: 12, marginBottom: GAP.section, background: '#EBEBEB', border: 'none', boxShadow: 'none' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 8 }}>
-                    {portalKpis.map((k) => (
+                    {kpiCards.map((k) => (
                         <article key={k.label} style={{ background: '#fff', borderRadius: 16, padding: '10px 12px 9px', overflow: 'hidden' }}>
                             <div style={{ fontSize: FONT_SIZE.kpiLabel, color: '#4E4E4E', textTransform: 'uppercase', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
                             <div style={{ fontSize: FONT_SIZE.kpiValue, lineHeight: 1.1, fontWeight: 600, color: k.variant === 'danger' ? '#A4260E' : '#10575C', margin: '6px 0 6px' }}>{k.value}</div>
@@ -1033,17 +1121,24 @@ const renderPortalSyndication = (isMobile) => {
                             <thead>
                                 <tr style={{ borderBottom: '2px solid #E1E1E1' }}>
                                     <th style={{ textAlign: 'left', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader }}>Portal</th>
+                                    {portals[0] && portals[0].market !== undefined && (
+                                        <th style={{ textAlign: 'left', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader }}>Market</th>
+                                    )}
                                     <th style={{ textAlign: 'right', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader }}>Listings</th>
                                     <th style={{ textAlign: 'right', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader }}>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {portalStatusRows.map((row) => {
+                                {portals.map((row) => {
                                     const pill = portalStatusPill(row.status);
+                                    const listingsLabel = typeof row.listings === 'number' ? row.listings.toLocaleString() : row.listings;
                                     return (
                                         <tr key={row.portal} style={{ borderBottom: '1px solid #F1F2F4' }}>
                                             <td style={{ padding: '12px 8px', fontWeight: 600, color: '#060606' }}>{row.portal}</td>
-                                            <td style={{ padding: '12px 8px', textAlign: 'right', color: '#384046' }}>{row.listings}</td>
+                                            {row.market !== undefined && (
+                                                <td style={{ padding: '12px 8px', color: '#384046' }}>{row.market}</td>
+                                            )}
+                                            <td style={{ padding: '12px 8px', textAlign: 'right', color: '#384046' }}>{listingsLabel}</td>
                                             <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                                                 <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, background: pill.bg, color: pill.color }}>{pill.label}</span>
                                             </td>
@@ -1058,10 +1153,10 @@ const renderPortalSyndication = (isMobile) => {
                 <article style={{ ...card, padding: GAP.card }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: GAP.section }}>
                         <h2 style={sectionHeading}>Pending actions</h2>
-                        <span style={{ background: '#FFCFC5', color: '#A4260E', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, padding: '5px 14px', whiteSpace: 'nowrap' }}>18 pending</span>
+                        <span style={{ background: '#FFCFC5', color: '#A4260E', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, padding: '5px 14px', whiteSpace: 'nowrap' }}>{pendingCount} pending</span>
                     </div>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 0 }}>
-                        {portalPendingActions.map((row, idx) => (
+                        {pendingActions.map((row, idx) => (
                             <li key={row.portal} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 0', borderTop: idx ? '1px solid #F1F2F4' : 'none', fontSize: FONT_SIZE.body }}>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ fontWeight: 700, color: '#10575C' }}>{row.portal}</div>
@@ -1078,7 +1173,7 @@ const renderPortalSyndication = (isMobile) => {
                 <article style={{ ...card, padding: GAP.card }}>
                     <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>Listings by market</h2>
                     <div style={{ display: 'grid', gap: 12 }}>
-                        {portalListingsByMarket.map((m) => (
+                        {listingsByMarket.map((m) => (
                             <div key={m.code} style={{ display: 'grid', gridTemplateColumns: '30px 1fr minmax(0,1fr) 56px', alignItems: 'center', gap: 12 }}>
                                 <span style={{ fontSize: FONT_SIZE.button, fontWeight: 800, color: '#10575C', textAlign: 'center' }}>{m.code}</span>
                                 <span style={{ fontSize: FONT_SIZE.body, fontWeight: 600, color: '#384046', minWidth: 0 }}>{m.market}</span>
@@ -1094,7 +1189,7 @@ const renderPortalSyndication = (isMobile) => {
                 <article style={{ ...card, padding: GAP.card }}>
                     <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>AI listing features</h2>
                     <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 0 }}>
-                        {portalAiFeatures.map((f, idx) => (
+                        {aiFeatures.map((f, idx) => (
                             <li key={f.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 0', borderTop: idx ? '1px solid #F1F2F4' : 'none', fontSize: FONT_SIZE.body }}>
                                 <span style={{ fontWeight: 600, color: '#060606' }}>{f.label}</span>
                                 {f.kind === 'action'
@@ -1146,22 +1241,26 @@ const getWeekLabel = () => {
     return `Week of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 };
 
-const renderEnterpriseMarketing = (isMobile, mktState) => {
-    const { accounts = [], networks = [], showPicker, setShowPicker, onConnectPlatform, onDisconnect, connectingPlatform } = mktState;
-    const kpis = { reach: 0, engagementRate: 0, linkClicks: 0, leadInquiries: 0 };
-    const recentPosts = [];
-    const calendarDays = getWeekDays();
+const renderEnterpriseMarketing = (isMobile, mktState, data) => {
+    const { accounts: liveAccounts = [], networks = [], showPicker, setShowPicker, onConnectPlatform, onDisconnect, connectingPlatform } = mktState;
+    const m = data?.marketing || null;
+    const demoMode = !!m;
 
-    const kpiCards = [
-        { label: 'Reach', value: kpis.reach > 0 ? Number(kpis.reach).toLocaleString() : '—', delta: accounts.length > 0 ? 'From connected accounts' : 'Connect accounts to track', variant: accounts.length > 0 ? 'teal' : 'muted' },
-        { label: 'Engagement rate', value: kpis.engagementRate > 0 ? `${kpis.engagementRate}%` : '—', delta: accounts.length > 0 ? 'Across platforms' : '—', variant: kpis.engagementRate > 0 ? 'teal' : 'muted' },
-        { label: 'Link clicks', value: kpis.linkClicks > 0 ? Number(kpis.linkClicks).toLocaleString() : '—', delta: accounts.length > 0 ? 'Tracked via Outstand' : '—', variant: kpis.linkClicks > 0 ? 'teal' : 'muted' },
-        { label: 'Lead inquiries', value: kpis.leadInquiries > 0 ? String(kpis.leadInquiries) : '—', delta: accounts.length > 0 ? 'From social channels' : '—', variant: kpis.leadInquiries > 0 ? 'teal' : 'muted' },
+    const accounts = demoMode ? (m.accounts || []) : liveAccounts;
+    const kpiCards = demoMode ? (m.kpis || []) : [
+        { label: 'Reach', value: '—', delta: liveAccounts.length > 0 ? 'From connected accounts' : 'Connect accounts to track', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+        { label: 'Engagement rate', value: '—', delta: liveAccounts.length > 0 ? 'Across platforms' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+        { label: 'Link clicks', value: '—', delta: liveAccounts.length > 0 ? 'Tracked via Outstand' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+        { label: 'Lead inquiries', value: '—', delta: liveAccounts.length > 0 ? 'From social channels' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
     ];
+    const recentPosts = demoMode ? (m.recentPosts || []) : [];
+    const calendarDays = demoMode ? (m.calendar || getWeekDays()) : getWeekDays();
+    const calendarLabel = demoMode ? (m.calendarLabel || getWeekLabel()) : getWeekLabel();
+    const contentCalendar = demoMode ? (m.contentCalendar || []) : [];
 
     return (
     <>
-        <InsightsBanner text="Suggestions based on platform activity, campaign performance, and content gaps." />
+        <InsightsBanner text={data?.auraBanners?.marketing || 'Suggestions based on platform activity, campaign performance, and content gaps.'} />
 
         <section style={{ ...card, padding: 12, marginBottom: GAP.section, background: '#EBEBEB', border: 'none', boxShadow: 'none' }}>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 8 }}>
@@ -1225,16 +1324,22 @@ const renderEnterpriseMarketing = (isMobile, mktState) => {
                     )}
                     {accounts.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                            {accounts.map((acct) => {
+                            {accounts.map((acct, accIdx) => {
                                 const pm = PLATFORM_META[acct.platform] || { label: acct.platform, icon: 'fa-globe', color: '#8B8F94' };
+                                const followerLabel = acct.followers != null
+                                    ? (acct.followers >= 1000 ? `${(acct.followers / 1000).toFixed(1)}K` : String(acct.followers))
+                                    : null;
                                 return (
-                                    <div key={acct.outstandAccountId || acct._id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F4F5F6', borderRadius: 20, padding: '6px 14px 6px 10px' }}>
+                                    <div key={acct.outstandAccountId || acct._id || `${acct.platform}-${accIdx}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F4F5F6', borderRadius: 20, padding: '6px 14px 6px 10px' }}>
                                         <i className={`fab ${pm.icon}`} style={{ fontSize: 14, color: pm.color }} aria-hidden />
                                         <span style={{ fontSize: FONT_SIZE.sub, fontWeight: 600, color: '#384046' }}>{acct.username || pm.label}</span>
+                                        {followerLabel && <span style={{ fontSize: 9, color: '#8B8F94', fontWeight: 600 }}>{followerLabel} followers</span>}
                                         <span style={{ fontSize: 9, color: '#10B981', fontWeight: 700 }}>Connected</span>
-                                        <button type="button" onClick={() => onDisconnect(acct.outstandAccountId)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: 2 }}>
-                                            <i className="fas fa-times" style={{ fontSize: 10, color: '#D93025' }} aria-hidden />
-                                        </button>
+                                        {!demoMode && (
+                                            <button type="button" onClick={() => onDisconnect(acct.outstandAccountId)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: 2 }}>
+                                                <i className="fas fa-times" style={{ fontSize: 10, color: '#D93025' }} aria-hidden />
+                                            </button>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -1255,7 +1360,7 @@ const renderEnterpriseMarketing = (isMobile, mktState) => {
                 <article style={{ ...card, padding: GAP.card }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                         <h2 style={sectionHeading}>Content calendar</h2>
-                        <span style={{ fontSize: FONT_SIZE.body, fontWeight: 600, color: '#8B8F94' }}>{getWeekLabel()}</span>
+                        <span style={{ fontSize: FONT_SIZE.body, fontWeight: 600, color: '#8B8F94' }}>{calendarLabel}</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(7, minmax(72px, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 6, overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch', paddingBottom: isMobile ? 4 : 0 }}>
                         {calendarDays.map((d) => (
@@ -1316,6 +1421,43 @@ const renderEnterpriseMarketing = (isMobile, mktState) => {
                 )}
             </article>
         </section>
+
+        {contentCalendar.length > 0 && (
+            <article style={{ ...card, padding: GAP.card, marginBottom: GAP.section }}>
+                <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>Scheduled content — this week</h2>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FONT_SIZE.tableBody, minWidth: isMobile ? 0 : 720 }}>
+                        <thead>
+                            <tr style={{ borderBottom: '2px solid #E1E1E1' }}>
+                                {['Day', 'Post', 'Market', 'Platforms', 'Status'].map((h) => (
+                                    <th key={h} style={{ textAlign: 'left', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader, whiteSpace: 'nowrap' }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {contentCalendar.map((row) => {
+                                const tonePill = row.tone === 'ok'
+                                    ? { bg: '#D2E4E5', color: '#10575C' }
+                                    : row.tone === 'warn'
+                                        ? { bg: 'rgba(200,120,20,0.18)', color: '#A65F0A' }
+                                        : { bg: 'rgba(107,114,128,0.16)', color: '#4B5563' };
+                                return (
+                                    <tr key={row.day} style={{ borderBottom: '1px solid #F1F2F4' }}>
+                                        <td style={{ padding: '12px 8px', color: '#10575C', fontWeight: 700, whiteSpace: 'nowrap' }}>{row.day}</td>
+                                        <td style={{ padding: '12px 8px', color: '#060606', fontWeight: 600 }}>{row.post}</td>
+                                        <td style={{ padding: '12px 8px', color: '#384046', whiteSpace: 'nowrap' }}>{row.market}</td>
+                                        <td style={{ padding: '12px 8px', color: '#384046', whiteSpace: 'nowrap' }}>{row.platform}</td>
+                                        <td style={{ padding: '12px 8px' }}>
+                                            <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, background: tonePill.bg, color: tonePill.color }}>{row.status}</span>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        )}
 
         <article style={{ ...card, padding: GAP.card, minHeight: isMobile ? 160 : 200, position: 'relative' }}>
             <h2 style={sectionHeading}>Post creation</h2>
@@ -1468,7 +1610,16 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
     const [mktLoading, setMktLoading] = useState(activeTab === 'marketing');
 
     useEffect(() => {
-        if (!needsData.includes(activeTab)) return;
+        // In demo mode (admin previewing the enterprise dashboard via the
+        // "Demo Dashboards" launcher), use the canned fixture for every tab so
+        // the UI looks populated for client demos without backend changes.
+        const demoOverride = getDemoOverride();
+        if (demoOverride) {
+            setDashData(demoOverride);
+            setDashLoading(false);
+            return undefined;
+        }
+        if (!needsData.includes(activeTab)) return undefined;
         let cancelled = false;
         setDashLoading(true);
         (async () => {
@@ -1485,7 +1636,13 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
     }, [activeTab]);
 
     useEffect(() => {
-        if (activeTab !== 'marketing') return;
+        if (activeTab !== 'marketing') return undefined;
+        const demoOverride = getDemoOverride();
+        if (demoOverride) {
+            // Demo mode renders marketing entirely from the fixture; skip API calls.
+            setMktLoading(false);
+            return undefined;
+        }
         let cancelled = false;
         setMktLoading(true);
         (async () => {
@@ -1573,9 +1730,9 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
                             : activeTab === 'royalty'
                                 ? (dashLoading ? <LogoLoading message="Loading royalty data..." style={{ minHeight: '40vh' }} /> : renderRoyalty(isMobile, dashData, fmtVal))
                                 : activeTab === 'compliance'
-                                    ? renderCompliance(isMobile)
+                                    ? renderCompliance(isMobile, dashData)
                                     : activeTab === 'portal'
-                                        ? renderPortalSyndication(isMobile)
+                                        ? renderPortalSyndication(isMobile, dashData)
                                         : activeTab === 'marketing'
                                             ? (mktLoading ? <LogoLoading message="Loading marketing..." style={{ minHeight: '40vh' }} /> : renderEnterpriseMarketing(isMobile, {
                                                 accounts: mktAccounts,
@@ -1585,7 +1742,7 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
                                                 onConnectPlatform: handleConnectPlatform,
                                                 onDisconnect: handleDisconnect,
                                                 connectingPlatform: mktConnecting,
-                                            }))
+                                            }, dashData))
                                             : activeTab === 'vault'
                                                 ? renderEnterpriseVault(isMobile)
                                                 : renderMainDash()}

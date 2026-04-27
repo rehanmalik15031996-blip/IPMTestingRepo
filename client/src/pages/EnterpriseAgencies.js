@@ -7,6 +7,16 @@ import { usePreferences } from '../context/PreferencesContext';
 import { sanitizeAgencyBranchDisplay } from '../utils/display';
 import { showNotification } from '../components/NotificationManager';
 import { brand, card, sectionTitle, KpiSection, pageShell, statusPill as getStatusPill } from '../components/enterpriseTheme';
+import { getDemoState } from '../components/DemoModeBar';
+import enterpriseDemoData from '../data/enterpriseDemoData';
+
+// Returns the canned franchise directory when an admin is previewing the
+// enterprise dashboard via the "Demo Dashboards" launcher, or null otherwise.
+const getEnterpriseDemoOverride = () => {
+    const ds = getDemoState();
+    if (ds && ds.selectedRole === 'enterprise') return enterpriseDemoData;
+    return null;
+};
 
 export default function EnterpriseAgencies() {
     const isMobile = useIsMobile();
@@ -29,6 +39,14 @@ export default function EnterpriseAgencies() {
     const [resendEmail, setResendEmail] = useState({});
 
     const refresh = useCallback(async () => {
+        const demoOverride = getEnterpriseDemoOverride();
+        if (demoOverride) {
+            setAgencies(demoOverride.performanceByFranchise || []);
+            setInvites(demoOverride.pendingInvites || []);
+            setRoyaltyConfig({ defaults: demoOverride.royaltyDefaults, perAgency: {} });
+            setLoading(false);
+            return;
+        }
         try {
             const [agRes, invRes, rcRes] = await Promise.all([
                 api.get('/api/enterprise/agencies'),
@@ -161,6 +179,34 @@ export default function EnterpriseAgencies() {
         if (expandedAgency === agencyId) { setExpandedAgency(null); setAgencyDetail(null); return; }
         setExpandedAgency(agencyId);
         setDetailLoading(true);
+        const demoOverride = getEnterpriseDemoOverride();
+        if (demoOverride) {
+            // Synthesize a detail payload from the fixture so demo expansions
+            // don't fire 404s against /api/enterprise/agency-detail/:demoId.
+            const franchise = (demoOverride.performanceByFranchise || []).find((f) => f._id === agencyId);
+            const franchiseName = franchise?.name;
+            const branches = (demoOverride.performanceByBranch || []).filter((b) => b.franchise === franchiseName);
+            const agents = (demoOverride.agentRows || []).filter((a) => a.franchise === franchiseName);
+            setAgencyDetail({
+                agency: franchise || null,
+                branches: branches.map((b) => ({
+                    name: b.branch,
+                    address: franchise?.address || franchise?.location || '',
+                    agents: b.agents || 0,
+                    listings: b.listings || 0,
+                    revenue: b.revenue || 0,
+                })),
+                agents: agents.map((a) => ({
+                    name: a.name,
+                    email: a.email || '',
+                    listings: a.listings || 0,
+                    sales: a.propertiesSold || 0,
+                    totalSales: a.totalSales || 0,
+                })),
+            });
+            setDetailLoading(false);
+            return;
+        }
         try {
             const res = await api.get(`/api/enterprise/agency-detail/${agencyId}`);
             setAgencyDetail(res.data);
