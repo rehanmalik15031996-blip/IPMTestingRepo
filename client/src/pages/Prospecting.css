@@ -1,4 +1,18 @@
 /* Prospecting page — Figma node 2387:12 */
+
+/* Lock the page to the visible viewport (between the top bar and the bottom)
+   so the dashboard fits like the other tabs and never produces a vertical
+   scrollbar. The two parent classes are set on .layout-content by App.js:
+     - .layout-dashboard-shell    → top bar visible (56px)
+     - .layout-demo-active        → top bar + demo bar (94px) */
+.layout-dashboard-shell .prospecting-shell {
+    height: calc(100vh - 56px);
+    overflow: hidden;
+}
+.layout-demo-active .prospecting-shell {
+    height: calc(100vh - 94px);
+}
+
 /* Tokens (kept local to avoid touching the global theme):
    --pr-green:   #10575c   IPM green
    --pr-dark:    #4e4e4e   IPM dark grey
@@ -22,22 +36,25 @@
     --pr-orange: #ffb21b;
     --pr-band: #ebebeb;
 
-    flex: 1;
-    min-width: 0;
-    height: 100vh;
-    overflow: auto;
-    padding: 24px 40px 40px;
+    /* Fit the entire view between the dashboard top bar and the bottom of
+       the viewport; never produce a vertical scrollbar at the page level. */
+    padding: 16px 24px 20px !important;
     background: #f7f7f8;
     font-family: 'Poppins', sans-serif;
     color: var(--pr-dark);
+    overflow: hidden !important;
+    display: flex;
 }
 
 .prospecting-page__inner {
-    max-width: 1506px;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    max-width: 1600px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 14px;
 }
 
 /* ---------- HEADER ---------- */
@@ -46,72 +63,77 @@
     justify-content: space-between;
     align-items: flex-end;
     gap: 16px;
+    flex-shrink: 0;
 }
 
 .prospecting-page__header h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 700;
     color: #111;
+    line-height: 1.1;
 }
 
 .prospecting-page__header p {
-    margin: 6px 0 0;
-    font-size: 14px;
+    margin: 4px 0 0;
+    font-size: 13px;
     color: #888;
 }
 
 /* ---------- KPI BAND ---------- */
 .pr-kpi-band {
     background: var(--pr-band);
-    border-radius: 20px;
-    padding: 32px;
+    border-radius: 18px;
+    padding: 14px;
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 34px;
+    gap: 12px;
+    flex-shrink: 0;
 }
 
 .pr-kpi {
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(2px);
-    border-radius: 20px;
-    padding: 16px;
+    border-radius: 14px;
+    padding: 10px 12px 12px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    min-height: 136px;
+    gap: 6px;
 }
 
 .pr-kpi__title {
-    font-size: 16px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--pr-dark);
-    line-height: 1;
+    line-height: 1.1;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
 }
 
 .pr-kpi__value {
-    font-size: 40px;
+    font-size: 28px;
     font-weight: 600;
     color: var(--pr-green);
     line-height: 1;
-    margin: 14px 0 0;
+    margin: 0;
 }
 
 .pr-kpi__pill {
-    margin-top: 14px;
+    margin-top: 4px;
     align-self: stretch;
     background: var(--pr-green-bg);
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 14px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
     font-weight: 300;
     color: var(--pr-green);
-    line-height: 1.4;
+    line-height: 1.3;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .pr-kpi__pill strong { font-weight: 600; }
@@ -124,81 +146,88 @@
 /* ---------- THREE COLUMN ROW ---------- */
 .pr-row {
     display: grid;
-    grid-template-columns: 275px 1fr 275px;
-    gap: 32px;
+    grid-template-columns: 220px 1fr 220px;
+    gap: 14px;
     align-items: stretch;
+    flex: 1;
+    min-height: 0;
 }
 
 .pr-card {
     background: #fff;
     border: 2px solid var(--pr-light);
-    border-radius: 20px;
-    padding: 24px 16px 20px;
+    border-radius: 18px;
+    padding: 14px 12px 12px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    min-height: 604px;
+    gap: 10px;
+    min-height: 0;
     position: relative;
+    overflow: hidden;
 }
 
 .pr-card__heading {
-    font-size: 16px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--pr-mid);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     line-height: 1;
-    margin: 0 0 4px 4px;
+    margin: 0 0 2px 4px;
+    flex-shrink: 0;
 }
 
 /* ---------- FILTERS COLUMN ---------- */
 .pr-filters {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 8px;
+    overflow-y: auto;
 }
 
 .pr-chip {
     width: 100%;
-    height: 30px;
-    padding: 0 12px;
-    border-radius: 20px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
     background: var(--pr-light);
     color: var(--pr-dark);
-    font-size: 14px;
-    font-weight: 300;
+    font-size: 11px;
+    font-weight: 500;
     display: flex;
     align-items: center;
     justify-content: space-between;
     border: none;
     cursor: pointer;
-    backdrop-filter: blur(2px);
     font-family: inherit;
     text-align: left;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
 }
 
 .pr-chip__caret {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--pr-dark);
-    margin-left: 8px;
+    margin-left: 6px;
 }
 
 /* ---------- MAP COLUMN ---------- */
 .pr-map-col {
-    padding: 24px 0 0;
+    padding: 14px 0 0;
 }
 
 .pr-map-col__header {
-    padding: 0 24px;
+    padding: 0 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .pr-map-col__title {
-    font-size: 16px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--pr-mid);
     text-transform: uppercase;
@@ -207,24 +236,25 @@
 }
 
 .pr-map-toolbar {
-    padding: 18px 24px 14px;
+    padding: 10px 14px 8px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .pr-search {
     flex: 1;
-    min-width: 240px;
-    height: 36px;
+    min-width: 200px;
+    height: 30px;
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid var(--pr-light);
-    border-radius: 20px;
-    padding: 0 14px;
+    border-radius: 999px;
+    padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .pr-search input {
@@ -233,7 +263,7 @@
     outline: none;
     background: transparent;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--pr-dark);
 }
 
@@ -244,17 +274,17 @@
 .pr-tagrow { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .pr-tag {
-    height: 30px;
-    padding: 0 14px;
-    border-radius: 20px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
     border: 1px solid var(--pr-light);
     background: #fff;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 500;
     color: var(--pr-dark);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     font-family: inherit;
 }
@@ -278,9 +308,10 @@
    Uses CSS gradients only, so it ships zero KB extra and renders crisply at any size. */
 .pr-map {
     position: relative;
-    margin: 0 24px 24px;
-    height: 460px;
-    border-radius: 16px;
+    margin: 0 14px 14px;
+    flex: 1;
+    min-height: 0;
+    border-radius: 14px;
     overflow: hidden;
     background:
       /* lighter parks/blocks */
@@ -376,14 +407,14 @@
 /* Prospect popup card on the map */
 .pr-popup {
     position: absolute;
-    top: 10%;
-    right: 12%;
-    width: 248px;
+    top: 8%;
+    right: 6%;
+    width: 220px;
     background: #fff;
-    border-radius: 14px;
+    border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.14);
-    padding: 14px;
-    font-size: 12px;
+    padding: 10px 12px;
+    font-size: 11px;
     color: var(--pr-dark);
     z-index: 4;
 }
@@ -423,7 +454,7 @@
     margin-bottom: 6px;
 }
 
-.pr-popup__score b { font-size: 28px; font-weight: 700; line-height: 1; }
+.pr-popup__score b { font-size: 22px; font-weight: 700; line-height: 1; }
 .pr-popup__score em {
     font-style: normal;
     background: #d3e3df;
@@ -502,81 +533,89 @@
 .pr-insights {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    padding-bottom: 8px;
+    gap: 10px;
+    padding-bottom: 4px;
 }
 
 .pr-insights__panel {
     background: var(--pr-light);
-    border-radius: 12px;
-    height: 130px;
+    border-radius: 10px;
+    height: 110px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--pr-mid);
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .pr-insights__placeholder {
     flex: 1;
     border-radius: 8px;
     background: repeating-linear-gradient(135deg, #f3f3f3 0 8px, #ececec 8px 16px);
-    margin: 0 12px;
+    margin: 0 10px;
     color: var(--pr-mid);
-    font-size: 11px;
+    font-size: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 80%;
+    height: 84%;
 }
 
 .pr-insights__spacer { flex: 1; }
 
 .pr-insights__cta {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin-top: auto;
+    flex-shrink: 0;
 }
 
 .pr-cta-btn {
     flex: 1;
-    height: 40px;
-    border-radius: 10px;
+    height: 34px;
+    border-radius: 8px;
     border: none;
     background: var(--pr-orange);
     color: var(--pr-green);
     font-family: inherit;
-    font-size: 14px;
-    font-weight: 300;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     transition: filter 0.15s ease;
 }
 
 .pr-cta-btn:hover { filter: brightness(0.96); }
 
 /* ---------- RESPONSIVE ---------- */
-@media (max-width: 1300px) {
+@media (max-width: 1280px) {
     .pr-row {
-        grid-template-columns: 240px 1fr 240px;
-        gap: 20px;
+        grid-template-columns: 200px 1fr 200px;
+        gap: 10px;
     }
-    .pr-kpi-band {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-    }
+    .pr-kpi__value { font-size: 24px; }
 }
 
+@media (max-width: 1080px) {
+    .pr-kpi-band { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* On narrow viewports allow vertical scroll — single column simply doesn't
+   fit in one viewport and forcing it would crush the map unusably. */
 @media (max-width: 900px) {
-    .prospecting-page { padding: 16px; }
+    .prospecting-page {
+        padding: 12px !important;
+        overflow: auto !important;
+    }
     .pr-row { grid-template-columns: 1fr; }
-    .pr-card { min-height: 0; }
-    .pr-kpi-band { grid-template-columns: repeat(2, 1fr); padding: 18px; gap: 14px; }
-    .pr-map { height: 360px; }
-    .pr-popup { right: 4%; width: 220px; }
+    .pr-card { min-height: 360px; }
+    .pr-map { min-height: 320px; }
+    .pr-kpi-band { grid-template-columns: repeat(2, 1fr); }
+    .pr-popup { right: 4%; width: 200px; }
 }
 
 @media (max-width: 520px) {

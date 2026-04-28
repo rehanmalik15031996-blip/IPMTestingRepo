@@ -80,10 +80,10 @@ export default function Prospecting() {
     const [activeTagId, setActiveTagId] = useState('all');
 
     return (
-        <div className="dashboard-container" style={{ display: 'flex', fontFamily: "'Inter', sans-serif", background: '#f7f7f8', height: '100vh', overflow: 'hidden' }}>
+        <div className="dashboard-container prospecting-shell" style={{ display: 'flex', fontFamily: "'Inter', sans-serif", background: '#f7f7f8' }}>
             <Sidebar />
 
-            <main className="prospecting-page">
+            <main className="dashboard-main prospecting-page">
                 <div className="prospecting-page__inner">
                     <header className="prospecting-page__header">
                         <div>
