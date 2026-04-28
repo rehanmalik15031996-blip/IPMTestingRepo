@@ -247,9 +247,14 @@
   font-family: 'Poppins', system-ui, sans-serif;
   font-weight: 300;
   font-synthesis: none;
-  font-size: clamp(12px, 1.04vw, 20px);
+  /* Reduced max so longer labels (e.g. "Performance Analytics", "Area Intelligence")
+     fit on a single line within the 250px card. nowrap enforces it. */
+  font-size: clamp(11px, 0.83vw, 16px);
   line-height: 1.25;
   color: var(--ipm-green);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------- Bottom caption ---------- */

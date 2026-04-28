@@ -505,6 +505,10 @@
   object-fit: cover;
   object-position: center;
   pointer-events: none;
+  /* Slight zoom crops ~6% off each edge so the bottom-right "Veo" watermark
+     baked into the source video sits outside the visible area. */
+  transform: scale(1.12);
+  transform-origin: center;
 }
 
 /* Figma 2077:1257 — teal overlay rgba(16,87,92,0.6) */

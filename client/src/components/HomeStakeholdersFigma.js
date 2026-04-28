@@ -22,27 +22,63 @@ const STAKEHOLDERS = [
   {
     label: 'Enterprises',
     icon: '/landing-stakeholders/icon-enterprises.png',
-    features: ['Performance', 'Royalty Engine', 'Compliance Reports', 'Portal Syndication', 'Marketing', 'Vault'],
+    features: [
+      'Command Centre',
+      'Royalty Engine',
+      'Compliance Hub',
+      'Network Control',
+      'MLS Sync',
+      'Brand Oversight',
+    ],
   },
   {
     label: 'Agencies',
     icon: '/landing-stakeholders/icon-agencies.png',
-    features: ['Listing Management', 'Agent Management', 'CRM', 'Vault', 'Marketing'],
+    features: [
+      'Performance Hub',
+      'Prospecting & CRM',
+      'Listings & MLS',
+      'Deal Pipeline',
+      'Marketing Suite',
+      'Smart Vault AI',
+      'IPM Score',
+    ],
   },
   {
     label: 'Buyers',
     icon: '/landing-stakeholders/icon-buyers.png',
-    features: ['Search Match', 'Neighbourhood Insights', 'Value Trends', 'ESG Information', 'Lifestyle Index'],
+    features: [
+      'Aura Matching',
+      'Smart Alerts',
+      'Area Intelligence',
+      'Value Trends',
+      'ESG & Lifestyle',
+      'Bond Calculator',
+    ],
   },
   {
     label: 'Investors',
     icon: '/landing-stakeholders/icon-investors.png',
-    features: ['Portfolio Management', 'Property Performance', 'Asset Value', 'Vault'],
+    features: [
+      'Portfolio Command',
+      'Asset Performance',
+      'IPM Score',
+      'ROI Forecasting',
+      'Market Intel',
+      'Smart Vault AI',
+    ],
   },
   {
     label: 'Partners',
     icon: '/landing-stakeholders/icon-partners.png',
-    features: ['Pipeline', 'CRM', 'Collaboration', 'Vault', 'Advertising'],
+    features: [
+      'Partner Portal',
+      'Lead Pipeline',
+      'Deal Tracking',
+      'Smart Vault AI',
+      'Revenue Tracking',
+      'Performance Intel',
+    ],
   },
 ];
 
