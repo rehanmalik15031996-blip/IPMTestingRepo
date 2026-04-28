@@ -30,9 +30,14 @@ module.exports = async (req, res) => {
   const userId = getUserIdFromRequest(req, res);
   if (!userId) return;
 
+  // The marketing dashboard (Outstand integration) is now shared across all
+  // authenticated users that have a "Marketing" tab — agency, agency_agent,
+  // independent_agent, agent, partner, admin, and enterprise. Each user's
+  // connected social accounts are stored on their own User document
+  // (`outstandAccounts`), so reads/writes are naturally scoped per-user.
   const enterprise = await User.findById(userId);
-  if (!enterprise || String(enterprise.role).toLowerCase() !== 'enterprise') {
-    return res.status(403).json({ message: 'Enterprise role required.' });
+  if (!enterprise) {
+    return res.status(404).json({ message: 'User not found.' });
   }
 
   const action = req.query.action || req.body?.action;

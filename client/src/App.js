@@ -61,7 +61,6 @@ const Portfolio = lazy(() => import('./pages/Portfolio'));
 const News = lazy(() => import('./pages/News'));
 const Admin = lazy(() => import('./pages/Admin'));
 const AdminDemo = lazy(() => import('./pages/AdminDemo'));
-const AdminMarketing = lazy(() => import('./pages/AdminMarketing'));
 const EnterpriseRegistration = lazy(() => import('./pages/EnterpriseRegistration'));
 const EnterpriseDashboard = lazy(() => import('./pages/EnterpriseDashboard'));
 const EnterpriseAgencies = lazy(() => import('./pages/EnterpriseAgencies'));
@@ -718,7 +717,11 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/collection" element={<Collection />} />
-                <Route path="/marketing" element={<ProtectedRoute><AdminMarketing /></ProtectedRoute>} />
+                {/* Shared marketing dashboard — every role with a Marketing tab
+                    (agency, agency_agent, independent_agent, agent, partner)
+                    now lands on the same enterprise-style marketing page. The
+                    role-aware <Sidebar /> inside keeps each user's own nav. */}
+                <Route path="/marketing" element={<ProtectedRoute><EnterpriseDashboard activeTab="marketing" /></ProtectedRoute>} />
                 <Route path="/outstand/oauth-callback" element={<ProtectedRoute><OutstandOAuthCallback /></ProtectedRoute>} />
                 <Route path="/new-developments" element={<NewDevelopments />} />
                 <Route path="/about" element={<About />} />
@@ -785,7 +788,7 @@ function App() {
                 <Route path="/property/:id" element={<Property />} />
                 <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
                 <Route path="/admin/demo" element={<ProtectedRoute><AdminDemo /></ProtectedRoute>} />
-                <Route path="/admin/marketing" element={<ProtectedRoute><AdminMarketing /></ProtectedRoute>} />
+                <Route path="/admin/marketing" element={<ProtectedRoute><EnterpriseDashboard activeTab="marketing" /></ProtectedRoute>} />
                 <Route path="/independent-agent-signup" element={<IndependentAgentRegistration />} />
                 <Route path="/agency-agent-invite" element={<AgencyAgentInviteRegistration />} />
                 <Route path="/partner-signup" element={<PartnerRegistration />} />
