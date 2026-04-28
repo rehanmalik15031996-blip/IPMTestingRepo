@@ -56,6 +56,7 @@ const Agents = lazy(() => import('./pages/Agents'));
 const CRM = lazy(() => import('./pages/CRM'));
 const SellerCMAReport = lazy(() => import('./pages/SellerCMAReport'));
 const ListingManagement = lazy(() => import('./pages/ListingManagement'));
+const Prospecting = lazy(() => import('./pages/Prospecting'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
 const News = lazy(() => import('./pages/News'));
 const Admin = lazy(() => import('./pages/Admin'));
@@ -86,7 +87,7 @@ const PageLoader = () => (
 // Roles that require a completed subscription (plan selected + payment where applicable) before using the app
 const SUBSCRIPTION_REQUIRED_ROLES = ['buyer', 'seller', 'investor', 'agency', 'independent_agent', 'agent'];
 // When subscription is incomplete, allow settings + auth flows AND all dashboard routes so sidebar nav works (user can still see a banner to complete payment)
-const DASHBOARD_PATHS = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/marketing', '/admin', '/add-listing', '/news', '/my-ads', '/enterprise/agencies', '/enterprise/invites', '/enterprise-dashboard', '/bond-originator', '/conveyancer'];
+const DASHBOARD_PATHS = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/prospecting', '/agents', '/crm', '/marketing', '/admin', '/add-listing', '/news', '/my-ads', '/enterprise/agencies', '/enterprise/invites', '/enterprise-dashboard', '/bond-originator', '/conveyancer'];
 const ALLOWED_WHEN_INCOMPLETE = ['/settings', '/client-signup', '/agency-signup', '/independent-agent-signup', '/registration/success', '/login', ...DASHBOARD_PATHS];
 
 /** Local-only: set in client/.env.development.local — pairs with server DEV_BYPASS_AUTH */
@@ -244,7 +245,7 @@ const LayoutInner = ({ children }) => {
     const showPublicLayout = !hideNav.includes(location.pathname);
 
     // Dashboard-style pages: show solid top nav in flow (no overlay); sidebar starts below nav
-    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/demo', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
+    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/prospecting', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/demo', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
     const isDashboardLayout = dashboardLayoutPaths.includes(location.pathname) || location.pathname.startsWith('/bond-originator') || location.pathname.startsWith('/conveyancer') || location.pathname.startsWith('/partner/') || location.pathname.startsWith('/enterprise/');
     // Home, Services, Pricing: same fixed landing bar + same layout shell as home/services (layout-home).
     const isLandingNav = ['/', '/our-services', '/pricing'].includes(location.pathname);
@@ -695,7 +696,7 @@ const LayoutInner = ({ children }) => {
 
 const Layout = ({ children }) => {
     const location = useLocation();
-    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/demo', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
+    const dashboardLayoutPaths = ['/dashboard', '/portfolio', '/saved', '/vault', '/agency-dashboard', '/agent-dashboard', '/listing-management', '/prospecting', '/agents', '/crm', '/crm/cma-report', '/settings', '/add-listing', '/marketing', '/admin', '/admin/demo', '/admin/marketing', '/news', '/enterprise/agencies', '/enterprise/invites', '/enterprise/performance', '/enterprise/royalty-engine', '/enterprise/syndication', '/enterprise-dashboard', '/enterprise/performance-country', '/enterprise/performance-franchise', '/enterprise/performance-branch', '/enterprise/compliance-report', '/enterprise/portal-syndication', '/enterprise/marketing', '/enterprise/vault', '/bond-originator', '/bond-originator-dashboard', '/conveyancer', '/partner-dashboard'];
     const isDashboardLayout = dashboardLayoutPaths.includes(location.pathname) || location.pathname.startsWith('/bond-originator') || location.pathname.startsWith('/conveyancer') || location.pathname.startsWith('/partner/') || location.pathname.startsWith('/enterprise/');
     const content = <LayoutInner>{children}</LayoutInner>;
     return isDashboardLayout ? <SidebarProvider>{content}</SidebarProvider> : content;
@@ -779,6 +780,7 @@ function App() {
                 <Route path="/agency-dashboard" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
                 <Route path='/agent-dashboard' element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/listing-management" element={<ProtectedRoute><ListingManagement /></ProtectedRoute>} />
+                <Route path="/prospecting" element={<ProtectedRoute><Prospecting /></ProtectedRoute>} />
                 <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
                 <Route path="/property/:id" element={<Property />} />
                 <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

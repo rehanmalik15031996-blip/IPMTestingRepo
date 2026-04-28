@@ -195,6 +195,9 @@ const Sidebar = () => {
                 {/* INDEPENDENT AGENT & AGENCY AGENT */}
                 {(role === 'independent_agent' || role === 'agency_agent') && (
                     <>
+                        <Link to="/prospecting" className={`sb-link ${isActive('/prospecting')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-prospecting">
+                            <i className="fas fa-bullseye"></i> Prospecting
+                        </Link>
                         <Link to="/portfolio" className={`sb-link ${isActive('/portfolio')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-listings">
                             <i className="fas fa-list"></i> Listing management
                         </Link>
@@ -241,6 +244,9 @@ const Sidebar = () => {
                 {/* AGENCY LINKS */}
                 {role === 'agency' && (
                     <>
+                        <Link to="/prospecting" className={`sb-link ${isActive('/prospecting')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-prospecting">
+                            <i className="fas fa-bullseye"></i> Prospecting
+                        </Link>
                         <Link to="/listing-management" className={`sb-link ${isActive('/listing-management')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-listings">
                             <i className="fas fa-list"></i> {t('sidebar.listingManagement')}
                         </Link>
@@ -256,10 +262,10 @@ const Sidebar = () => {
                     </>
                 )}
 
-                {/* Agency: enterprise invites */}
+                {/* Agency / franchise: sales (was "Enterprise" — points to the same enterprise-invites page) */}
                 {role === 'agency' && (
                     <Link to="/enterprise/invites" className={`sb-link ${isActive('/enterprise/invites')}`} onClick={() => setMobileOpen(false)}>
-                        <i className="fas fa-building" style={{ opacity: 0.7 }}></i> Enterprise
+                        <i className="fas fa-chart-line" style={{ opacity: 0.7 }}></i> Sales
                     </Link>
                 )}
 

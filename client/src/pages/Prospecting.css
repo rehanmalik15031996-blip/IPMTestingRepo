@@ -1,0 +1,584 @@
+/* Prospecting page — Figma node 2387:12 */
+/* Tokens (kept local to avoid touching the global theme):
+   --pr-green:   #10575c   IPM green
+   --pr-dark:    #4e4e4e   IPM dark grey
+   --pr-mid:     #c2c3c3   IPM grey
+   --pr-light:   #e1e1e1   IPM light grey (borders, chip bg)
+   --pr-red:     #a4260e   IPM red (delta down)
+   --pr-red-bg:  #ffcfc5   red pill bg
+   --pr-green-bg:#d2e4e5   green pill bg
+   --pr-orange:  #ffb21b   IPM orange (CTAs / highlight)
+   --pr-band:    #ebebeb   KPI strip background
+*/
+
+.prospecting-page {
+    --pr-green: #10575c;
+    --pr-dark: #4e4e4e;
+    --pr-mid: #c2c3c3;
+    --pr-light: #e1e1e1;
+    --pr-red: #a4260e;
+    --pr-red-bg: #ffcfc5;
+    --pr-green-bg: #d2e4e5;
+    --pr-orange: #ffb21b;
+    --pr-band: #ebebeb;
+
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    overflow: auto;
+    padding: 24px 40px 40px;
+    background: #f7f7f8;
+    font-family: 'Poppins', sans-serif;
+    color: var(--pr-dark);
+}
+
+.prospecting-page__inner {
+    max-width: 1506px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* ---------- HEADER ---------- */
+.prospecting-page__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.prospecting-page__header h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: #111;
+}
+
+.prospecting-page__header p {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #888;
+}
+
+/* ---------- KPI BAND ---------- */
+.pr-kpi-band {
+    background: var(--pr-band);
+    border-radius: 20px;
+    padding: 32px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 34px;
+}
+
+.pr-kpi {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(2px);
+    border-radius: 20px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 136px;
+}
+
+.pr-kpi__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--pr-dark);
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.pr-kpi__value {
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--pr-green);
+    line-height: 1;
+    margin: 14px 0 0;
+}
+
+.pr-kpi__pill {
+    margin-top: 14px;
+    align-self: stretch;
+    background: var(--pr-green-bg);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--pr-green);
+    line-height: 1.4;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pr-kpi__pill strong { font-weight: 600; }
+
+.pr-kpi__pill--down {
+    background: var(--pr-red-bg);
+    color: var(--pr-red);
+}
+
+/* ---------- THREE COLUMN ROW ---------- */
+.pr-row {
+    display: grid;
+    grid-template-columns: 275px 1fr 275px;
+    gap: 32px;
+    align-items: stretch;
+}
+
+.pr-card {
+    background: #fff;
+    border: 2px solid var(--pr-light);
+    border-radius: 20px;
+    padding: 24px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 604px;
+    position: relative;
+}
+
+.pr-card__heading {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--pr-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin: 0 0 4px 4px;
+}
+
+/* ---------- FILTERS COLUMN ---------- */
+.pr-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.pr-chip {
+    width: 100%;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 20px;
+    background: var(--pr-light);
+    color: var(--pr-dark);
+    font-size: 14px;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: none;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    font-family: inherit;
+    text-align: left;
+}
+
+.pr-chip__caret {
+    font-size: 11px;
+    color: var(--pr-dark);
+    margin-left: 8px;
+}
+
+/* ---------- MAP COLUMN ---------- */
+.pr-map-col {
+    padding: 24px 0 0;
+}
+
+.pr-map-col__header {
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.pr-map-col__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--pr-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
+
+.pr-map-toolbar {
+    padding: 18px 24px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pr-search {
+    flex: 1;
+    min-width: 240px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--pr-light);
+    border-radius: 20px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pr-search input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--pr-dark);
+}
+
+.pr-search input::placeholder { color: var(--pr-mid); }
+
+.pr-search i { color: var(--pr-mid); font-size: 12px; }
+
+.pr-tagrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pr-tag {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 20px;
+    border: 1px solid var(--pr-light);
+    background: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--pr-dark);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.pr-tag.is-active {
+    background: var(--pr-green);
+    color: #fff;
+    border-color: var(--pr-green);
+}
+
+.pr-tag__dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+}
+
+.pr-tag__dot--hot   { background: #c8553d; }
+.pr-tag__dot--warm  { background: var(--pr-orange); }
+.pr-tag__dot--cool  { background: #5b8c8f; }
+
+/* The map placeholder — a stylised street grid evoking the Figma screenshot.
+   Uses CSS gradients only, so it ships zero KB extra and renders crisply at any size. */
+.pr-map {
+    position: relative;
+    margin: 0 24px 24px;
+    height: 460px;
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+      /* lighter parks/blocks */
+      radial-gradient(circle at 20% 70%, #e8eadf 0 80px, transparent 81px),
+      radial-gradient(circle at 65% 30%, #e8eadf 0 60px, transparent 61px),
+      /* horizontal streets */
+      repeating-linear-gradient(0deg,
+        transparent 0 88px, #ffffff 88px 100px),
+      /* vertical streets */
+      repeating-linear-gradient(90deg,
+        transparent 0 130px, #ffffff 130px 142px),
+      /* soft beige base */
+      linear-gradient(135deg, #f3eee3 0%, #ece6d8 100%);
+}
+
+.pr-map__diagonal {
+    position: absolute;
+    inset: 12% 8% 14% 10%;
+    border: 2px dashed #6a8a6a;
+    border-radius: 24px;
+    opacity: 0.7;
+    pointer-events: none;
+    transform: rotate(-3deg);
+}
+
+.pr-map__street-label {
+    position: absolute;
+    font-size: 10px;
+    color: #88897e;
+    font-weight: 500;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.pr-map__zone-label {
+    position: absolute;
+    top: 18px; left: 24px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #5b6b3f;
+    background: rgba(255,255,255,0.6);
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.pr-pin {
+    position: absolute;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    border: 2px solid #fff;
+}
+
+.pr-pin--hot   { background: #c8553d; }
+.pr-pin--warm  { background: var(--pr-orange); }
+.pr-pin--cool  { background: #5b8c8f; }
+.pr-pin--cold  { background: #8a8a8a; }
+
+.pr-map__legend {
+    position: absolute;
+    left: 16px; bottom: 16px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 11px;
+    color: var(--pr-dark);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    line-height: 1.5;
+}
+
+.pr-map__legend h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--pr-dark);
+}
+
+.pr-legend-row { display: flex; align-items: center; gap: 6px; }
+.pr-legend-row .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+}
+
+/* Prospect popup card on the map */
+.pr-popup {
+    position: absolute;
+    top: 10%;
+    right: 12%;
+    width: 248px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+    padding: 14px;
+    font-size: 12px;
+    color: var(--pr-dark);
+    z-index: 4;
+}
+
+.pr-popup__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.pr-popup__pill {
+    background: var(--pr-orange);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+}
+
+.pr-popup__close {
+    color: #aaa;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+}
+
+.pr-popup__score {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--pr-green);
+    margin-bottom: 6px;
+}
+
+.pr-popup__score b { font-size: 28px; font-weight: 700; line-height: 1; }
+.pr-popup__score em {
+    font-style: normal;
+    background: #d3e3df;
+    color: var(--pr-green);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+}
+.pr-popup__score span { font-size: 11px; color: var(--pr-dark); margin-left: auto; }
+
+.pr-popup__title { font-weight: 700; color: #1a1a1a; }
+.pr-popup__addr  { color: #777; margin-bottom: 10px; font-size: 11px; }
+
+.pr-popup__grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px 10px;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    padding: 8px 0;
+    margin-bottom: 10px;
+}
+
+.pr-popup__cell label {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pr-popup__cell span { font-size: 11px; color: var(--pr-dark); font-weight: 600; }
+
+.pr-popup__owner {
+    margin-bottom: 10px;
+    font-size: 11px;
+}
+.pr-popup__owner label {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.pr-popup__actions { display: flex; gap: 6px; }
+
+.pr-popup__btn {
+    flex: 1;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--pr-light);
+    background: #fff;
+    color: var(--pr-dark);
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.pr-popup__btn--primary {
+    background: var(--pr-green);
+    color: #fff;
+    border-color: var(--pr-green);
+}
+
+/* ---------- INSIGHTS COLUMN ---------- */
+.pr-insights {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 8px;
+}
+
+.pr-insights__panel {
+    background: var(--pr-light);
+    border-radius: 12px;
+    height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pr-mid);
+    font-size: 12px;
+}
+
+.pr-insights__placeholder {
+    flex: 1;
+    border-radius: 8px;
+    background: repeating-linear-gradient(135deg, #f3f3f3 0 8px, #ececec 8px 16px);
+    margin: 0 12px;
+    color: var(--pr-mid);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 80%;
+}
+
+.pr-insights__spacer { flex: 1; }
+
+.pr-insights__cta {
+    display: flex;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.pr-cta-btn {
+    flex: 1;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: var(--pr-orange);
+    color: var(--pr-green);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 300;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: filter 0.15s ease;
+}
+
+.pr-cta-btn:hover { filter: brightness(0.96); }
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 1300px) {
+    .pr-row {
+        grid-template-columns: 240px 1fr 240px;
+        gap: 20px;
+    }
+    .pr-kpi-band {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+}
+
+@media (max-width: 900px) {
+    .prospecting-page { padding: 16px; }
+    .pr-row { grid-template-columns: 1fr; }
+    .pr-card { min-height: 0; }
+    .pr-kpi-band { grid-template-columns: repeat(2, 1fr); padding: 18px; gap: 14px; }
+    .pr-map { height: 360px; }
+    .pr-popup { right: 4%; width: 220px; }
+}
+
+@media (max-width: 520px) {
+    .pr-kpi-band { grid-template-columns: 1fr; }
+}
