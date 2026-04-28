@@ -3901,6 +3901,19 @@ nav.news-nav.news-nav--hero,
     display: inline-block;
 }
 
+/* Invisible hover-bridge below the pill so the cursor stays "inside" the
+   wrapper while traveling from the pill down into the dropdown menu.
+   Prevents onMouseLeave from firing on subpixel/animation gaps. */
+.user-dropdown-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    min-width: 220px;
+    height: 14px;
+}
+
 .user-profile-pill {
     background-color: white;
     border-radius: 30px; /* Fully rounded pill shape */
@@ -3912,6 +3925,7 @@ nav.news-nav.news-nav--hero,
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     transition: 0.2s;
     user-select: none;
+    max-width: 260px; /* keep pill from growing unbounded with long names */
 }
 
 .user-profile-pill:hover {
@@ -3923,6 +3937,8 @@ nav.news-nav.news-nav--hero,
 .user-avatar-circle {
     width: 32px;
     height: 32px;
+    min-width: 32px; /* lock against flex shrinking it into an oval */
+    flex: 0 0 32px;
     background-color: #10b981; /* The Green from your image */
     color: white;
     border-radius: 50%;
@@ -3932,6 +3948,7 @@ nav.news-nav.news-nav--hero,
     font-weight: bold;
     font-size: 14px;
     text-transform: uppercase;
+    aspect-ratio: 1 / 1;
 }
 
 /* User Name Text */
@@ -3939,16 +3956,27 @@ nav.news-nav.news-nav--hero,
     color: #333;
     font-weight: 600;
     font-size: 14px;
+    /* Truncate long display names so the avatar can't be squashed and
+       the pill can't push other navbar items off-screen. */
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 /* --- DROPDOWN MENU STYLES --- */
 .user-dropdown-menu {
     position: absolute;
+    /* Anchor at right of pill so it lines up with the pill rather than
+       being chopped off when the pill is wide. The wrapper hover-bridge
+       above bridges the small gap created by margin-top. */
     top: 100%;
-    left: 0;
+    right: 0;
+    left: auto;
     min-width: 200px;
     width: max-content;
-    margin-top: 0;
+    margin-top: 6px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.15);
