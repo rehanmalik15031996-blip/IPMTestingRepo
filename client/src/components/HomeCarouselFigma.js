@@ -12,26 +12,29 @@ const SLIDES = [
   {
     title: ['A connected system', 'for the full real estate market'],
     sub:   ['One subscription. One System. The full experience.'],
+    video: '/landing-carousel/slide-video.mp4',
   },
   {
     title: ['Global property access,', 'connected in one system'],
     sub:   ['Discover opportunities, markets,', 'and cross-border activity with greater ease.'],
+    video: '/landing-carousel/slide-video-2.mp4',
   },
   {
     title: ['Real-time insight', 'for more informed decisions'],
     sub:   ['Live property and market data helps every stakeholder', 'move with greater confidence.'],
+    video: '/landing-carousel/slide-video-3.mp4',
   },
   {
     title: ['Clear visibility across', 'every stage of the process'],
     sub:   ['Track deals, documents, updates,', 'and next steps from start to finish.'],
+    video: '/landing-carousel/slide-video-4.mp4',
   },
   {
     title: ['From first search', 'to final transfer and beyond'],
     sub:   ['IPM supports the full property journey', 'in one connected platform.'],
+    video: '/landing-carousel/slide-video-5.mp4',
   },
 ];
-
-const SLIDE_BG = '/landing-carousel/slide-bg.png';
 
 // Viewport heights of scroll per slide transition (bigger = more gradual).
 // 80vh per slide × 4 transitions = 320vh of pinned scrolling + 100vh dwell
@@ -114,11 +117,15 @@ export default function HomeCarouselFigma() {
                 style={style}
               >
                 <div className="home-carousel__card">
-                  <img
+                  <video
                     className="home-carousel__bg"
-                    src={SLIDE_BG}
-                    alt=""
-                    loading={i === 0 ? 'eager' : 'lazy'}
+                    src={slide.video}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload={i === 0 ? 'auto' : 'metadata'}
+                    aria-hidden="true"
                   />
                   <div className="home-carousel__scrim" aria-hidden />
                   <div className="home-carousel__copy">

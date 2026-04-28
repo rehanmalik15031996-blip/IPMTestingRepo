@@ -19,10 +19,10 @@
 
   position: relative;
   width: 100%;
-  /* Dark surround blends with the card's teal scrim so the vertical bands
-     above/below the card (caused by the card's fixed 1402:788 aspect) don't
-     read as empty white space. */
-  background: #060606;
+  /* White surround so this section reads consistently with the rest of the
+     light landing page. The card's teal scrim keeps the slide content
+     readable on its own. */
+  background: #ffffff;
   color: #ffffff;
   font-family: 'Poppins', system-ui, sans-serif;
   /* Total scroll distance = (slides - 1) transitions + 1 dwell viewport */
@@ -93,6 +93,10 @@
   z-index: 0;
   user-select: none;
   pointer-events: none;
+  /* Zoom slightly so the bottom-right "Veo" watermark on the source video
+     is cropped out of view. Matches the hero video treatment. */
+  transform: scale(1.12);
+  transform-origin: center;
 }
 
 /* Figma overlay (Fill inspector): IPM green #10575C at 30% opacity */
