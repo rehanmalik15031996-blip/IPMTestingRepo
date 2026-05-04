@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "cd client && npm install && npm run build",
+  "buildCommand": "cd client && npm install --include=dev && npm run build",
   "outputDirectory": "client/build",
-  "installCommand": "npm install && cd server && npm install --omit=dev && cd ../client && npm install",
+  "installCommand": "npm install && cd server && npm install --omit=dev && cd ../client && npm install --include=dev",
   "framework": null,
   "functions": {
     "api/agency/migration/import/**": {

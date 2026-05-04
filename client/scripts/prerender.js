@@ -35,8 +35,29 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const handler = require('serve-handler');
-const puppeteer = require('puppeteer');
+
+// Load deps with clear, loud diagnostics so a missing dev-dependency on the
+// build host (e.g. Vercel skipping devDeps when NODE_ENV=production) doesn't
+// silently degrade the deploy to "no pre-render".
+let handler;
+let puppeteer;
+try {
+  handler = require('serve-handler');
+} catch (e) {
+  console.error('[prerender] FATAL: cannot require("serve-handler"). Is it installed?');
+  console.error('[prerender]   Hint: ensure devDependencies are installed on the build host.');
+  console.error('[prerender]   Hint: Vercel sets NODE_ENV=production which makes `npm install` skip devDeps.');
+  console.error('[prerender]   Hint: use `npm install --include=dev` in the buildCommand.');
+  console.error('[prerender]   Underlying error:', e.message);
+  process.exit(1);
+}
+try {
+  puppeteer = require('puppeteer');
+} catch (e) {
+  console.error('[prerender] FATAL: cannot require("puppeteer"). Is it installed?');
+  console.error('[prerender]   Underlying error:', e.message);
+  process.exit(1);
+}
 
 const BUILD_DIR = path.resolve(__dirname, '..', 'build');
 const PORT = Number(process.env.PRERENDER_PORT || 45678);
@@ -169,7 +190,15 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[prerender] uncaught:', err);
-  // Best-effort: never fail the deploy because of pre-render.
+  console.error('');
+  console.error('================================================================');
+  console.error('[prerender] FATAL UNCAUGHT ERROR — pre-render did NOT run.');
+  console.error('[prerender] The deploy will continue but every public marketing');
+  console.error('[prerender] route will serve the empty CRA shell to crawlers.');
+  console.error('[prerender]', err && err.stack ? err.stack : err);
+  console.error('================================================================');
+  console.error('');
+  // Best-effort: never fail the deploy because of pre-render. Log loudly so
+  // operators can still spot the problem in Vercel build logs.
   process.exit(0);
 });
