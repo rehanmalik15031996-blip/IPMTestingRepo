@@ -8,6 +8,7 @@ import { usePreferences } from '../context/PreferencesContext';
 import { useTranslation } from 'react-i18next';
 import PropertyUploadForm from '../components/PropertyUploadForm';
 import AddAgentModal from '../components/AddAgentModal';
+import PortalPreviewModal from '../components/PortalPreviewModal';
 import { showNotification } from '../components/NotificationManager';
 import { getPropertyLimitForUser } from '../utils/planLimits';
 import { invalidateDashboardCache } from '../config/dashboardCache';
@@ -87,6 +88,7 @@ const ListingManagement = () => {
     const [matchModal, setMatchModal] = useState(null);
     const [matchScoresLoading, setMatchScoresLoading] = useState(false);
     const [matchModalSelectedIds, setMatchModalSelectedIds] = useState(new Set());
+    const [portalPreviewItem, setPortalPreviewItem] = useState(null);
 
     const fetchListings = useCallback(async (skipCache = false) => {
         if (!userId) return;
@@ -598,6 +600,14 @@ const ListingManagement = () => {
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
                                                 <button type="button" style={actionBtn} onClick={() => item._id && navigate(`/property/${item._id}`)}>{t('listing.view')}</button>
+                                                <button
+                                                    type="button"
+                                                    style={{ ...actionBtn, background: '#fff5f6', borderColor: '#C8102E', color: '#C8102E' }}
+                                                    onClick={() => setPortalPreviewItem(item)}
+                                                    title="Preview on Property24 & Private Property"
+                                                >
+                                                    <i className="fas fa-globe-africa" style={{ marginRight: 4 }} />Portals
+                                                </button>
                                                 <button type="button" style={actionBtn} onClick={() => handleEditProperty(item)} disabled={editLoading}>{t('listing.edit')}</button>
                                                 <button type="button" style={{ ...actionBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => handleDelete(item._id)}>{t('listing.delete')}</button>
                                     </div>
@@ -726,6 +736,14 @@ const ListingManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* Portal preview modal */}
+            <PortalPreviewModal
+                isOpen={!!portalPreviewItem}
+                item={portalPreviewItem}
+                user={user}
+                onClose={() => setPortalPreviewItem(null)}
+            />
 
             {/* Top matches modal */}
             {matchModal && (
