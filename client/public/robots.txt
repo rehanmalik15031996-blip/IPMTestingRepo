@@ -2,4 +2,25 @@
 User-agent: *
 Allow: /
 
+# Don't waste crawl budget on auth-gated app routes
+Disallow: /dashboard
+Disallow: /agent-dashboard
+Disallow: /agency-dashboard
+Disallow: /enterprise-dashboard
+Disallow: /partner-dashboard
+Disallow: /admin
+Disallow: /portfolio
+Disallow: /vault
+Disallow: /crm
+Disallow: /agents
+Disallow: /listing-management
+Disallow: /prospecting
+Disallow: /marketing
+Disallow: /enterprise/
+Disallow: /settings
+Disallow: /add-listing
+Disallow: /outstand/
+
+Sitemap: https://internationalpropertymarket.com/sitemap.xml
+
 # AI-readable site description for LLMs: /ai.txt

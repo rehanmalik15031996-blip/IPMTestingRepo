@@ -33,14 +33,38 @@
     "autoprefixer": "^10.4.27",
     "cross-env": "^7.0.3",
     "postcss": "^8.5.8",
+    "puppeteer": "^24.15.0",
+    "serve-handler": "^6.1.7",
     "tailwindcss": "^3.4.19"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "cross-env CI=false react-scripts build",
+    "postbuild": "node scripts/prerender.js",
+    "prerender": "node scripts/prerender.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "postinstall": "node scripts/fix-html2pdf-sourcemap.js"
+  },
+  "prerender": {
+    "routes": [
+      "/",
+      "/our-services",
+      "/pricing",
+      "/about",
+      "/careers",
+      "/contact",
+      "/help",
+      "/legal",
+      "/privacy",
+      "/login",
+      "/signup",
+      "/agency-signup",
+      "/enterprise-signup",
+      "/client-signup",
+      "/new-developments",
+      "/collection"
+    ]
   },
   "eslintConfig": {
     "extends": [
