@@ -36,27 +36,74 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-// Load deps with clear, loud diagnostics so a missing dev-dependency on the
-// build host (e.g. Vercel skipping devDeps when NODE_ENV=production) doesn't
-// silently degrade the deploy to "no pre-render".
+// Load deps with clear, loud diagnostics so missing dev-dependencies on the
+// build host don't silently degrade the deploy to "no pre-render".
 let handler;
-let puppeteer;
 try {
   handler = require('serve-handler');
 } catch (e) {
   console.error('[prerender] FATAL: cannot require("serve-handler"). Is it installed?');
   console.error('[prerender]   Hint: ensure devDependencies are installed on the build host.');
-  console.error('[prerender]   Hint: Vercel sets NODE_ENV=production which makes `npm install` skip devDeps.');
   console.error('[prerender]   Hint: use `npm install --include=dev` in the buildCommand.');
   console.error('[prerender]   Underlying error:', e.message);
   process.exit(1);
 }
-try {
-  puppeteer = require('puppeteer');
-} catch (e) {
-  console.error('[prerender] FATAL: cannot require("puppeteer"). Is it installed?');
-  console.error('[prerender]   Underlying error:', e.message);
-  process.exit(1);
+
+// Pick the right Chromium runtime for the host:
+//   - Vercel/Lambda build containers don't have system GUI libs (libnspr4,
+//     libnss3, etc.) so the Chromium that `puppeteer` bundles cannot launch
+//     (`error while loading shared libraries`). Use @sparticuz/chromium —
+//     a self-contained Chromium build with all required libs statically
+//     bundled, designed exactly for serverless environments — together with
+//     puppeteer-core (the lighter puppeteer that doesn't bundle a browser).
+//   - Locally (macOS / dev Linux) the bundled `puppeteer` Chromium works
+//     fine and we don't want to download the larger Sparticuz binary.
+const isServerlessBuildHost =
+  !!process.env.VERCEL ||
+  !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  !!process.env.NETLIFY ||
+  process.env.PRERENDER_FORCE_SPARTICUZ === '1';
+
+async function launchBrowser() {
+  if (isServerlessBuildHost) {
+    let puppeteerCore;
+    let chromium;
+    try {
+      puppeteerCore = require('puppeteer-core');
+      chromium = require('@sparticuz/chromium');
+    } catch (e) {
+      console.error('[prerender] FATAL: serverless build host detected but cannot load');
+      console.error('[prerender]   puppeteer-core / @sparticuz/chromium. Install them as devDeps.');
+      console.error('[prerender]   Underlying error:', e.message);
+      throw e;
+    }
+    console.log('[prerender] using @sparticuz/chromium (serverless build host)');
+    return puppeteerCore.launch({
+      args: [
+        ...chromium.args,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+      ],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
+  }
+
+  let puppeteer;
+  try {
+    puppeteer = require('puppeteer');
+  } catch (e) {
+    console.error('[prerender] FATAL: cannot require("puppeteer"). Is it installed?');
+    console.error('[prerender]   Underlying error:', e.message);
+    throw e;
+  }
+  console.log('[prerender] using bundled puppeteer (local dev)');
+  return puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
 }
 
 const BUILD_DIR = path.resolve(__dirname, '..', 'build');
@@ -167,10 +214,7 @@ async function main() {
   const results = [];
   try {
     server = await startServer(emptyShellHtml);
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    browser = await launchBrowser();
 
     for (const route of routes) {
       const result = await snapshotRoute(browser, route);
