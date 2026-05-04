@@ -64,8 +64,7 @@
       "/agency-signup",
       "/enterprise-signup",
       "/client-signup",
-      "/new-developments",
-      "/collection"
+      "/new-developments"
     ]
   },
   "eslintConfig": {
