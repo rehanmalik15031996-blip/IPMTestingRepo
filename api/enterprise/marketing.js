@@ -2,6 +2,25 @@ const connectDB = require('../_lib/mongodb');
 const { handleCors } = require('../_lib/cors');
 const { getUserIdFromRequest } = require('../_lib/auth');
 const User = require('../../server/models/User');
+const { buildMarketingSummary } = require('../_lib/marketingFixtures');
+
+// Wraps a JSON response with a synthesised marketingSummary built from the
+// user's own listings + connected accounts. Returns null when the user has
+// no connected accounts (so the dashboard keeps showing the empty state).
+async function withMarketingSummary(user, payload) {
+    try {
+        const summary = await buildMarketingSummary({
+            userId: user._id,
+            agencyId: user.agencyId,
+            role: user.role,
+            accounts: payload.connectedAccounts || user.outstandAccounts || [],
+        });
+        return { ...payload, marketingSummary: summary };
+    } catch (err) {
+        console.warn('[marketing] summary build failed:', err.message);
+        return payload;
+    }
+}
 
 const OUTSTAND_API = 'https://api.outstand.so/v1';
 const OUTSTAND_KEY = process.env.OUTSTAND_API_KEY;
@@ -57,7 +76,7 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET' && action === 'accounts') {
     const stored = enterprise.outstandAccounts || [];
-    return res.status(200).json({ success: true, connectedAccounts: stored });
+    return res.status(200).json(await withMarketingSummary(enterprise, { success: true, connectedAccounts: stored }));
   }
 
   if (req.method === 'POST' && action === 'auth-url') {
@@ -92,7 +111,7 @@ module.exports = async (req, res) => {
     enterprise.outstandAccounts = existing;
     await enterprise.save();
 
-    return res.status(200).json({ success: true, connectedAccounts: enterprise.outstandAccounts });
+    return res.status(200).json(await withMarketingSummary(enterprise, { success: true, connectedAccounts: enterprise.outstandAccounts }));
   }
 
   if (req.method === 'POST' && action === 'disconnect') {
@@ -102,7 +121,38 @@ module.exports = async (req, res) => {
       a => a.outstandAccountId !== outstandAccountId
     );
     await enterprise.save();
-    return res.status(200).json({ success: true, connectedAccounts: enterprise.outstandAccounts });
+    return res.status(200).json(await withMarketingSummary(enterprise, { success: true, connectedAccounts: enterprise.outstandAccounts }));
+  }
+
+  // Demo / no-Outstand-credentials shortcut: stamp a synthetic connected
+  // account onto the user's profile so the rest of the marketing UI (KPIs,
+  // calendar, recent posts feed, post composer) can be exercised without
+  // the real Meta/X/LinkedIn OAuth dance. The account id is prefixed with
+  // "mock_" so the regular sync-accounts merger never overwrites it and a
+  // simple disconnect call removes it cleanly.
+  if (req.method === 'POST' && action === 'mock-connect') {
+    const { platform, username } = req.body || {};
+    if (!platform) return res.status(400).json({ message: 'Platform required.' });
+    const safePlatform = String(platform).trim().toLowerCase();
+    if (!safePlatform) return res.status(400).json({ message: 'Platform required.' });
+    const existing = enterprise.outstandAccounts || [];
+    const handle = (username && String(username).trim()) || `${enterprise.name || 'Demo'} ${safePlatform}`.replace(/\s+/g, '').toLowerCase();
+    const mockAccount = {
+      outstandAccountId: `mock_${safePlatform}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      platform: safePlatform,
+      username: handle,
+      followers: Math.floor(800 + Math.random() * 9200),
+      connectedAt: new Date(),
+      isMock: true,
+    };
+    existing.push(mockAccount);
+    enterprise.outstandAccounts = existing;
+    await enterprise.save();
+    return res.status(200).json(await withMarketingSummary(enterprise, {
+      success: true,
+      connectedAccounts: enterprise.outstandAccounts,
+      account: mockAccount,
+    }));
   }
 
   return res.status(405).json({ message: 'Method or action not supported' });

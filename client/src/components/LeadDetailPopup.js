@@ -6,6 +6,23 @@ import { sanitizeAgencyBranchDisplay } from '../utils/display';
 const linkStyleEarly = { color: '#11575C', textDecoration: 'underline', fontSize: '14px' };
 const valueStyleEarly = { fontSize: '14px', color: '#1e293b' };
 
+/**
+ * Render any monetary lead field as `ZAR 1,234,567`. Falls back to the raw
+ * value when it isn't a positive finite number so non-numeric text passes
+ * through unchanged.
+ */
+const formatLeadMoney = (v) => {
+    if (v == null || v === '') return null;
+    const num = Number(String(v).replace(/[^\d.-]/g, ''));
+    if (!Number.isFinite(num) || num <= 0) return String(v);
+    try { return `ZAR ${num.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`; }
+    catch (_) { return `ZAR ${Math.round(num)}`; }
+};
+
+const BUYER_MONEY_KEYS = new Set(['budgetMin', 'budgetMax', 'preApprovalAmount']);
+const SELLER_MONEY_KEYS = new Set(['askingPrice', 'outstandingBondAmount']);
+const INVESTOR_MONEY_KEYS = new Set(['capitalAvailable', 'dealSizeMin', 'dealSizeMax', 'portfolioValue']);
+
 /** CRM leads may store linkedProperties as an array of { id, title } or a PropData object / free text. */
 function normalizeLinkedPropertyEntries(lead) {
     const out = [];
@@ -302,10 +319,15 @@ const LeadDetailPopup = ({ lead, onClose, onEdit, onDelete, userId, onRefresh, u
                                 </div>
                             </>
                         )}
-                        {(leadType === 'buyer' || leadType === 'seller' || leadType === 'investor') && (
+                        {(leadType === 'buyer' || leadType === 'seller' || leadType === 'investor' || leadType === 'prospect') && (
                             <>
                                 <div style={labelStyle}>Lead type</div>
-                                <div style={valueStyle}>{leadType === 'seller' ? 'Seller' : leadType === 'investor' ? 'Investor' : 'Buyer'}</div>
+                                <div style={valueStyle}>
+                                    {leadType === 'seller' ? 'Seller'
+                                        : leadType === 'investor' ? 'Investor'
+                                        : leadType === 'prospect' ? 'Prospect'
+                                        : 'Buyer'}
+                                </div>
                             </>
                         )}
                         {isBuyerOrInvestor && onOpenTopMatches && (
@@ -363,7 +385,8 @@ const LeadDetailPopup = ({ lead, onClose, onEdit, onDelete, userId, onRefresh, u
                                             return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {v.join(', ')}</div>;
                                         }
                                         if (typeof v === 'boolean') return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {v ? 'Yes' : 'No'}</div>;
-                                        return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {String(v)}</div>;
+                                        const display = BUYER_MONEY_KEYS.has(key) ? formatLeadMoney(v) : String(v);
+                                        return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {display}</div>;
                                     })}
                                 </div>
                             </>
@@ -403,8 +426,62 @@ const LeadDetailPopup = ({ lead, onClose, onEdit, onDelete, userId, onRefresh, u
                                             if (v.length === 0) return null;
                                             return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {v.join(', ')}</div>;
                                         }
-                                        return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {String(v)}</div>;
+                                        const display = SELLER_MONEY_KEYS.has(key) ? formatLeadMoney(v) : String(v);
+                                        return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {display}</div>;
                                     })}
+                                </div>
+                            </>
+                        )}
+                        {leadType === 'prospect' && lead.prospectDetails && (
+                            <>
+                                <div style={{ ...labelStyle, marginTop: '8px', color: '#11575C' }}>Prospect details</div>
+                                <div style={{ ...valueStyle, fontSize: '13px', background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
+                                    {(() => {
+                                        const pd = lead.prospectDetails || {};
+                                        const fmtZar = (v) => {
+                                            const n = Number(v);
+                                            if (!Number.isFinite(n) || n <= 0) return null;
+                                            try { return `ZAR ${n.toLocaleString('en-ZA')}`; } catch (_) { return `ZAR ${n}`; }
+                                        };
+                                        const NA = <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>not available</span>;
+                                        const rows = [
+                                            ['Address', pd.address || NA],
+                                            ['Suburb', pd.suburb || NA],
+                                            ['Property type', pd.propertyType ? String(pd.propertyType).replace(/^./, (c) => c.toUpperCase()) : NA],
+                                            ['Size', pd.sizeSqm ? `${Number(pd.sizeSqm).toLocaleString()} m²` : NA],
+                                            ['Asking price', fmtZar(pd.askingPrice) || NA],
+                                            ['AI prospect score', pd.score != null ? `${pd.score} (${pd.tone || 'n/a'})` : NA],
+                                            ['Listing agent', pd.listingAgentName || NA],
+                                            ['Listing agency', pd.listingAgencyName || NA],
+                                        ];
+                                        const renderable = rows;
+                                        return (
+                                            <>
+                                                {pd.listingAgentPhoto && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                                                        <img
+                                                            src={pd.listingAgentPhoto}
+                                                            alt={pd.listingAgentName || 'Listing agent'}
+                                                            style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }}
+                                                        />
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <div style={{ fontWeight: 700, color: '#11575C' }}>{pd.listingAgentName || 'Listing agent'}</div>
+                                                            {pd.listingAgencyName && <div style={{ fontSize: 12, color: '#64748b' }}>{pd.listingAgencyName}</div>}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {renderable.map(([k, v]) => (
+                                                    <div key={k} style={{ marginBottom: 6 }}><strong>{k}:</strong> {v}</div>
+                                                ))}
+                                                {pd.note && (
+                                                    <div style={{ marginTop: 8, padding: 8, background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                                                        <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Note from the field</div>
+                                                        <div style={{ color: '#1f2937' }}>{pd.note}</div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </>
                         )}
@@ -434,7 +511,8 @@ const LeadDetailPopup = ({ lead, onClose, onEdit, onDelete, userId, onRefresh, u
                                             if (v.length === 0) return null;
                                             return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {v.join(', ')}</div>;
                                         }
-                                        return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {String(v)}</div>;
+                                        const display = INVESTOR_MONEY_KEYS.has(key) ? formatLeadMoney(v) : String(v);
+                                        return <div key={key} style={{ marginBottom: '6px' }}><strong>{label}:</strong> {display}</div>;
                                     })}
                                 </div>
                             </>

@@ -27,13 +27,24 @@ const DEMO_ROLES = [
 ];
 
 // Pinned demo accounts per role. If an email is set here (or via env var) and the
-// user exists in the DB, that account is used for the demo launcher. Otherwise we
-// silently fall back to the auto-pick logic (newest user of that role with listings).
+// user exists in the DB, that account is used as the default for the demo
+// launcher. Otherwise we silently fall back to the auto-pick logic (newest user
+// of that role with listings).
 const PINNED_DEMO_EMAILS = {
   enterprise: process.env.DEMO_USER_ENTERPRISE_EMAIL || 'ramimof298@spotshops.com',
-  agency: process.env.DEMO_USER_AGENCY_EMAIL || 'foros40214@bultoc.com',
-  agency_agent: process.env.DEMO_USER_AGENCY_AGENT_EMAIL || 'xetihe5841@creteanu.com',
+  // Marder Properties is our flagship demo agency; Alex Vangelatos is its
+  // demo agent. Both are seeded by scripts/create-marder-agency.js and
+  // scripts/create-marder-agents.js so they exist in every environment.
+  agency: process.env.DEMO_USER_AGENCY_EMAIL || 'marder_agency@demo.com',
+  agency_agent: process.env.DEMO_USER_AGENCY_AGENT_EMAIL || 'alex.vangelatos@marder-demo.com',
 };
+
+// Roles where the launcher should expose a dropdown so the admin can pick a
+// specific user to view as. The default (first option) is the pinned account
+// when one is configured for that role, otherwise the most recent / most
+// active user.
+const MULTI_OPTION_ROLES = new Set(['agency', 'agency_agent', 'buyer', 'seller', 'investor']);
+const MULTI_OPTION_LIMIT = 50;
 
 function normalizeEmail(e) {
   return String(e || '').trim().toLowerCase();
@@ -55,12 +66,71 @@ module.exports = async (req, res) => {
     const results = {};
 
     for (const dr of DEMO_ROLES) {
+      // Roles with multiple selectable options get a full list of accounts so
+      // the admin can pick any one from a dropdown in AdminDemo.js. The first
+      // item is treated as the default — pinned accounts are surfaced first,
+      // otherwise the most-active (most listings) account leads.
+      if (MULTI_OPTION_ROLES.has(dr.key)) {
+        const users = await User.find(dr.query)
+          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
+          .sort({ name: 1, _id: -1 })
+          .limit(MULTI_OPTION_LIMIT)
+          .lean();
+        if (!users.length) continue;
+
+        const pinnedEmail = normalizeEmail(PINNED_DEMO_EMAILS[dr.key]);
+        const options = await Promise.all(users.map(async (u) => {
+          const propCount = await Property.countDocuments({
+            $or: [{ agentId: u._id }, { userId: u._id }],
+          });
+          return {
+            ...u,
+            _propertyCount: propCount,
+            _pinned: pinnedEmail && normalizeEmail(u.email) === pinnedEmail,
+            _demoToken: mintDemoToken(u._id),
+          };
+        }));
+        // Pinned accounts always lead, then by listing count, then by name.
+        options.sort((a, b) => {
+          if (a._pinned && !b._pinned) return -1;
+          if (b._pinned && !a._pinned) return 1;
+          return (b._propertyCount || 0) - (a._propertyCount || 0);
+        });
+
+        // Safety net: if a pinned email is configured but the user wasn't in
+        // the first batch (e.g. very large user table), look it up explicitly
+        // and prepend it so Marder/Alex are always selectable.
+        if (pinnedEmail && !options.some((o) => normalizeEmail(o.email) === pinnedEmail)) {
+          const pinnedUser = await User.findOne({ ...dr.query, email: pinnedEmail })
+            .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
+            .lean();
+          if (pinnedUser) {
+            const propCount = await Property.countDocuments({
+              $or: [{ agentId: pinnedUser._id }, { userId: pinnedUser._id }],
+            });
+            options.unshift({
+              ...pinnedUser,
+              _propertyCount: propCount,
+              _pinned: true,
+              _demoToken: mintDemoToken(pinnedUser._id),
+            });
+          }
+        }
+
+        results[dr.key] = {
+          ...options[0],
+          _label: dr.label,
+          _options: options,
+        };
+        continue;
+      }
+
       let picked = null;
 
       const pinnedEmail = normalizeEmail(PINNED_DEMO_EMAILS[dr.key]);
       if (pinnedEmail) {
         const pinnedUser = await User.findOne({ ...dr.query, email: pinnedEmail })
-          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus')
+          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
           .lean();
         if (pinnedUser) {
           const propCount = await Property.countDocuments({
@@ -72,7 +142,7 @@ module.exports = async (req, res) => {
 
       if (!picked) {
         const users = await User.find(dr.query)
-          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus')
+          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
           .sort({ _id: -1 })
           .limit(20)
           .lean();

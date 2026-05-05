@@ -155,6 +155,62 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
     const setSellerDetail = (key, value) => {
         setFormData(prev => ({ ...prev, sellerDetails: { ...prev.sellerDetails, [key]: value } }));
     };
+
+    // Pull seller details out of an existing listing so the agent can spin
+    // up a CMA against a real property without having to re-type everything.
+    // Properties come from /api/users/:id?type=dashboard, which sometimes
+    // wraps the raw doc in a `details` envelope and sometimes returns the
+    // flat doc — handle both.
+    const linkPropertyToSeller = (propertyId) => {
+        if (!propertyId) {
+            setFormData((prev) => ({
+                ...prev,
+                propertyId: '',
+                propertyOfInterest: '',
+            }));
+            return;
+        }
+        const wrapped = properties.find((x) => String(x?.details?._id || x?._id || '') === String(propertyId));
+        if (!wrapped) return;
+        const p = wrapped.details || wrapped;
+        const title = wrapped.propertyTitle || p.title || p.headline || 'Untitled';
+        const loc = p.locationDetails || {};
+        const fullAddress = [loc.streetAddress, loc.suburb, loc.city, loc.country].filter(Boolean).join(', ')
+            || p.location || '';
+        const sizeUnit = (p.propertySize?.unitSystem || '').toLowerCase();
+        const toSqm = (n) => {
+            if (n == null || n === '') return '';
+            return sizeUnit.startsWith('sqft') ? Math.round(Number(n) * 0.092903) : Number(n);
+        };
+        const propertyTypeNormalized = (() => {
+            const raw = String(p.propertyType || p.type || p.listingType || '').toLowerCase();
+            if (raw.includes('house')) return 'house';
+            if (raw.includes('apartment') || raw.includes('flat')) return 'apartment';
+            if (raw.includes('land') || raw.includes('plot') || raw.includes('erf')) return 'land';
+            if (raw.includes('development')) return 'development';
+            if (raw) return 'commercial';
+            return '';
+        })();
+        setFormData((prev) => ({
+            ...prev,
+            propertyId: String(propertyId),
+            propertyOfInterest: title,
+            sellerDetails: {
+                ...prev.sellerDetails,
+                propertyAddress: fullAddress || prev.sellerDetails.propertyAddress,
+                propertyStreet: loc.streetAddress || prev.sellerDetails.propertyStreet,
+                propertySuburb: loc.suburb || prev.sellerDetails.propertySuburb,
+                propertyCity: loc.city || prev.sellerDetails.propertyCity,
+                propertyCountry: loc.country || prev.sellerDetails.propertyCountry,
+                propertyType: propertyTypeNormalized || prev.sellerDetails.propertyType,
+                bedrooms: p.residential?.bedrooms != null ? String(p.residential.bedrooms) : prev.sellerDetails.bedrooms,
+                bathrooms: p.residential?.bathrooms != null ? String(p.residential.bathrooms) : prev.sellerDetails.bathrooms,
+                floorSizeM2: p.propertySize?.size != null ? String(toSqm(p.propertySize.size)) : prev.sellerDetails.floorSizeM2,
+                erfSizeM2: p.propertySize?.landSize != null ? String(toSqm(p.propertySize.landSize)) : prev.sellerDetails.erfSizeM2,
+                askingPrice: p.pricing?.askingPrice != null ? String(p.pricing.askingPrice) : prev.sellerDetails.askingPrice,
+            },
+        }));
+    };
     const setInvestorDetail = (key, value) => {
         setFormData(prev => ({ ...prev, investorDetails: { ...prev.investorDetails, [key]: value } }));
     };
@@ -298,6 +354,27 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                         {formData.leadType === 'seller' && (
                             <>
                                 <div style={sectionTitle}>Seller / listing details (optional)</div>
+                                <div style={{ background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '10px', padding: '12px 14px' }}>
+                                    <label style={{ ...labelStyle, color: '#11575C', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <i className="fas fa-link" style={{ fontSize: 11 }} />
+                                        Link to an existing listing
+                                    </label>
+                                    <select
+                                        value={formData.propertyId || ''}
+                                        onChange={(e) => linkPropertyToSeller(e.target.value)}
+                                        style={inputStyle}
+                                    >
+                                        <option value="">— No linked listing (enter details manually) —</option>
+                                        {properties.map((p) => {
+                                            const id = p?.details?._id || p?._id;
+                                            const title = p?.propertyTitle || p?.details?.title || p?.title || 'Untitled';
+                                            return id ? <option key={id} value={id}>{title}</option> : null;
+                                        })}
+                                    </select>
+                                    <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#0f766e' }}>
+                                        Picking a listing auto-fills the address, type, sizes and asking price below — useful for testing the CMA report.
+                                    </p>
+                                </div>
                                 <div>
                                     <label style={labelStyle}>Property address</label>
                                     <GooglePlacesInput
@@ -351,7 +428,7 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                     </div>
                                     <div>
                                         <label style={labelStyle}>Asking price</label>
-                                        <input type="text" value={s.askingPrice} onChange={(e) => setSellerDetail('askingPrice', e.target.value)} placeholder="Currency amount" style={inputStyle} />
+                                        <input type="text" value={s.askingPrice} onChange={(e) => setSellerDetail('askingPrice', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                     </div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -409,7 +486,7 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                         <span>Outstanding bond</span>
                                     </label>
                                     {s.outstandingBond && (
-                                        <input type="text" value={s.outstandingBondAmount} onChange={(e) => setSellerDetail('outstandingBondAmount', e.target.value)} placeholder="Amount" style={{ ...inputStyle, width: '120px' }} />
+                                        <input type="text" value={s.outstandingBondAmount} onChange={(e) => setSellerDetail('outstandingBondAmount', e.target.value)} placeholder="ZAR amount" style={{ ...inputStyle, width: '140px' }} />
                                     )}
                                 </div>
                                 <div>
@@ -438,11 +515,11 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                     <div>
                                         <label style={labelStyle}>Budget min</label>
-                                        <input type="text" value={b.budgetMin} onChange={(e) => setBuyerDetail('budgetMin', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                        <input type="text" value={b.budgetMin} onChange={(e) => setBuyerDetail('budgetMin', e.target.value)} placeholder="ZAR min" style={inputStyle} />
                                     </div>
                                     <div>
                                         <label style={labelStyle}>Budget max</label>
-                                        <input type="text" value={b.budgetMax} onChange={(e) => setBuyerDetail('budgetMax', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                        <input type="text" value={b.budgetMax} onChange={(e) => setBuyerDetail('budgetMax', e.target.value)} placeholder="ZAR max" style={inputStyle} />
                                     </div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -470,7 +547,7 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                         <div>
                                             <label style={labelStyle}>Pre-approval amount</label>
-                                            <input type="text" value={b.preApprovalAmount} onChange={(e) => setBuyerDetail('preApprovalAmount', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                            <input type="text" value={b.preApprovalAmount} onChange={(e) => setBuyerDetail('preApprovalAmount', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                         </div>
                                         <div>
                                             <label style={labelStyle}>Pre-approval expiry</label>
@@ -568,13 +645,13 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                         <div>
                                             <label style={labelStyle}>Capital available</label>
-                                            <input type="text" value={inv.capitalAvailable} onChange={(e) => setInvestorDetail('capitalAvailable', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                            <input type="text" value={inv.capitalAvailable} onChange={(e) => setInvestorDetail('capitalAvailable', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                         </div>
                                         <div>
                                             <label style={labelStyle}>Deal size min – max</label>
                                             <div style={{ display: 'flex', gap: 8 }}>
-                                                <input type="text" value={inv.dealSizeMin} onChange={(e) => setInvestorDetail('dealSizeMin', e.target.value)} placeholder="Min" style={{ ...inputStyle, flex: 1 }} />
-                                                <input type="text" value={inv.dealSizeMax} onChange={(e) => setInvestorDetail('dealSizeMax', e.target.value)} placeholder="Max" style={{ ...inputStyle, flex: 1 }} />
+                                                <input type="text" value={inv.dealSizeMin} onChange={(e) => setInvestorDetail('dealSizeMin', e.target.value)} placeholder="ZAR min" style={{ ...inputStyle, flex: 1 }} />
+                                                <input type="text" value={inv.dealSizeMax} onChange={(e) => setInvestorDetail('dealSizeMax', e.target.value)} placeholder="ZAR max" style={{ ...inputStyle, flex: 1 }} />
                                             </div>
                                         </div>
                                     </div>
@@ -609,7 +686,7 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                         </div>
                                         <div>
                                             <label style={labelStyle}>Portfolio value</label>
-                                            <input type="text" value={inv.portfolioValue} onChange={(e) => setInvestorDetail('portfolioValue', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                            <input type="text" value={inv.portfolioValue} onChange={(e) => setInvestorDetail('portfolioValue', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                         </div>
                                     </div>
                                     <div>
@@ -655,6 +732,10 @@ const AddNewLeadModal = ({ isOpen, onClose, onSuccess, userId, user, onOpenAddAg
                                 value={formData.propertyId}
                                 onChange={(e) => {
                                     const id = e.target.value;
+                                    if (formData.leadType === 'seller') {
+                                        linkPropertyToSeller(id);
+                                        return;
+                                    }
                                     const p = properties.find((x) => (x.details?._id || x._id) === id);
                                     const title = p ? (p.propertyTitle || p.title || 'Untitled') : '';
                                     setFormData({ ...formData, propertyId: id, propertyOfInterest: title });

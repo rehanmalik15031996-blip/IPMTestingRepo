@@ -17,7 +17,7 @@ const propertySchema = new mongoose.Schema({
     importAgencyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     /** Cross-system ids (PropData API / XLSX, HubSpot export or API) — complements import* fields */
     externalIds: { type: mongoose.Schema.Types.Mixed },
-    status: { type: String, enum: ['Draft', 'Published', 'Sold', 'Archived', 'Unavailable', 'Under Offer'], default: 'Draft' },
+    status: { type: String, enum: ['Draft', 'Published', 'Sold', 'Archived', 'Unavailable', 'Under Offer', 'Under Negotiation'], default: 'Draft' },
     isFeatured: { type: Boolean, default: false },
     /** Website visibility only (independent of pipeline status). If unset, derived from status + isFeatured. */
     websiteStatus: { type: String, enum: ['Draft', 'Published', 'Featured'], default: null },
@@ -33,6 +33,27 @@ const propertySchema = new mongoose.Schema({
     offerDate: { type: Date },
     /** Number of days to keep listing active when Under Offer (optional). */
     underOfferDaysActive: { type: Number },
+    /**
+     * Captured at the moment a listing flips to "Under Negotiation". Surfaces in the
+     * Sales pipeline so the agent can see the OTP, expected probability of closing,
+     * and how the commission will be split when the deal eventually transfers.
+     */
+    negotiationDetails: {
+        otpFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
+        otpFileName: { type: String, default: null },
+        probabilityOfSale: { type: Number, default: null }, // 0–100
+        commissionRatePct: { type: Number, default: null }, // overall % of sale price
+        commissionParties: [{
+            id: { type: String },
+            partyType: { type: String }, // 'listing_agent' | 'co_listing_agent' | 'selling_agent' | 'referral_agent' | 'conveyancer' | 'bond_originator' | 'other'
+            source: { type: String, default: 'internal' }, // 'internal' | 'external'
+            agentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // when source === 'internal'
+            name: { type: String },
+            firmName: { type: String, default: null }, // external-only (e.g. attorney firm)
+            sharePct: { type: Number, default: 0 }, // share of total commission, 0–100
+            notes: { type: String, default: null },
+        }],
+    },
     /** On show: day and times (e.g. "Saturday 10am–2pm"). */
     onShowDay: { type: String },
     onShowTimes: { type: String },

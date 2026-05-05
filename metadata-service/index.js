@@ -49,12 +49,13 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'myIPM Property Intelligence API',
-    version: '3.2.0',
-    description: 'Real-data-first property intelligence with Tavily web search + Claude analysis.',
+    version: '3.3.0',
+    description: 'Real-data-first property intelligence with Tavily web search + Claude analysis. Supports residential and commercial/industrial property categories.',
+    supported_categories: ['residential', 'commercial', 'industrial', 'retail', 'office', 'land'],
     tiers: {
       tier1: 'Google Geocoding + Places Nearby + Elevation (verified)',
       tier2: 'Open-Meteo, BigDataCloud, REST Countries, UK Land Registry, US ZipMarketData (free)',
-      tier3: 'Tavily web search + Claude extraction (real-time web data for valuations, comps, market)',
+      tier3: 'Tavily web search + Claude extraction (real-time web data for valuations, comps, market — category-aware)',
       tier4: 'Claude summarises & enriches all verified data'
     },
     configured: {
@@ -298,43 +299,107 @@ function currencyForCountry(code) {
 // TIER 3 — Tavily Web Search + Claude Extraction (real-time web data)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function buildTavilyQueries(address, countryCode, geo) {
+/**
+ * Normalize an arbitrary IPM property category into a coarse bucket used to
+ * build the Tavily queries. Unknown / empty → 'residential' (preserves the
+ * legacy behaviour for existing callers that don't pass a category).
+ */
+function normalizeCategory(category) {
+  const c = String(category || '').toLowerCase().trim();
+  if (!c) return 'residential';
+  if (['industrial', 'warehouse', 'factory'].includes(c)) return 'industrial';
+  if (['retail', 'shop', 'showroom'].includes(c)) return 'retail';
+  if (['office', 'offices'].includes(c)) return 'office';
+  if (['land', 'agricultural', 'vacant_land', 'vacant-land', 'agriculture', 'farm'].includes(c)) return 'land';
+  if (['commercial', 'investment', 'mixed_use', 'mixed-use'].includes(c)) return 'commercial';
+  return 'residential';
+}
+
+/**
+ * For a given category bucket, return the keyword phrases used inside Tavily
+ * queries (e.g. "warehouse for sale", "factory for sale"). Each portal sees
+ * 1–3 of these phrases combined with the area.
+ */
+function listingKeywordsFor(category) {
+  switch (category) {
+    case 'industrial':
+      return ['warehouse for sale', 'factory for sale', 'industrial property for sale', 'industrial space for sale'];
+    case 'commercial':
+      return ['commercial property for sale', 'commercial building for sale', 'investment property for sale'];
+    case 'retail':
+      return ['retail space for sale', 'shop for sale', 'showroom for sale'];
+    case 'office':
+      return ['office space for sale', 'office building for sale', 'office for sale'];
+    case 'land':
+      return ['vacant land for sale', 'land for sale', 'plot for sale', 'agricultural land for sale'];
+    case 'residential':
+    default:
+      return ['house for sale', 'property for sale', 'home for sale'];
+  }
+}
+
+function buildTavilyQueries(address, countryCode, geo, category) {
   const suburb = geo.suburb || '';
   const city = geo.city || '';
   const postalCode = geo.postal_code || '';
   const area = suburb || city;
+  const cat = normalizeCategory(category);
+  const isResidential = cat === 'residential';
+  const keywords = listingKeywordsFor(cat);
+  const primaryKw = keywords[0];
+  const secondaryKw = keywords[1] || keywords[0];
 
   const domainHints = {
     ZA: { property: ['property24.co.za', 'privateproperty.co.za'], stats: ['numbeo.com', 'statssa.gov.za'] },
-    US: { property: ['zillow.com', 'redfin.com', 'realtor.com'], stats: ['neighborhoodscout.com', 'areavibes.com'] },
-    GB: { property: ['rightmove.co.uk', 'zoopla.co.uk'], stats: ['police.uk', 'plumplot.co.uk'] },
+    US: { property: ['zillow.com', 'redfin.com', 'realtor.com', 'loopnet.com', 'crexi.com'], stats: ['neighborhoodscout.com', 'areavibes.com'] },
+    GB: { property: ['rightmove.co.uk', 'zoopla.co.uk', 'realla.co.uk'], stats: ['police.uk', 'plumplot.co.uk'] },
     AE: { property: ['bayut.com', 'propertyfinder.ae'], stats: ['numbeo.com'] },
   };
+  // For non-residential ZA listings, prefer Property24's commercial subsite.
   const domains = domainHints[countryCode] || { property: [], stats: [] };
 
   const listingQueries = [];
   if (countryCode === 'ZA') {
-    listingQueries.push(
-      { label: 'area_listings', query: `site:privateproperty.co.za "${area}" house for sale`, include_domains: ['privateproperty.co.za'], search_depth: 'advanced', max_results: 10 },
-      { label: 'area_listings_2', query: `site:property24.co.za "${area}" property for sale`, include_domains: ['property24.co.za'], search_depth: 'advanced', max_results: 8 },
-      { label: 'area_listings_3', query: `"${area}" bedroom house for sale R price ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
-    );
+    if (isResidential) {
+      listingQueries.push(
+        { label: 'area_listings', query: `site:privateproperty.co.za "${area}" ${primaryKw}`, include_domains: ['privateproperty.co.za'], search_depth: 'advanced', max_results: 10 },
+        { label: 'area_listings_2', query: `site:property24.co.za "${area}" property for sale`, include_domains: ['property24.co.za'], search_depth: 'advanced', max_results: 8 },
+        { label: 'area_listings_3', query: `"${area}" bedroom house for sale R price ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
+      );
+    } else {
+      // Commercial / industrial / retail / office / land — query Property24 commercial
+      // and Private Property commercial subsites.
+      listingQueries.push(
+        { label: 'area_listings', query: `site:property24.com/commercial "${area}" ${primaryKw}`, include_domains: ['property24.com', 'property24.co.za'], search_depth: 'advanced', max_results: 10 },
+        { label: 'area_listings_2', query: `site:privateproperty.co.za/commercial-property "${area}" ${secondaryKw}`, include_domains: ['privateproperty.co.za'], search_depth: 'advanced', max_results: 8 },
+        { label: 'area_listings_3', query: `"${area}" ${primaryKw} R price m² ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
+      );
+    }
   } else if (countryCode === 'AE') {
     listingQueries.push(
-      { label: 'area_listings', query: `site:propertyfinder.ae "${area}" apartment for sale AED`, include_domains: ['propertyfinder.ae'], search_depth: 'advanced', max_results: 10 },
-      { label: 'area_listings_2', query: `site:bayut.com "${area}" property for sale`, include_domains: ['bayut.com'], search_depth: 'advanced', max_results: 8 },
-      { label: 'area_listings_3', query: `"${area}" property for sale AED bedrooms ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
+      { label: 'area_listings', query: `site:propertyfinder.ae "${area}" ${isResidential ? 'apartment for sale AED' : primaryKw + ' AED'}`, include_domains: ['propertyfinder.ae'], search_depth: 'advanced', max_results: 10 },
+      { label: 'area_listings_2', query: `site:bayut.com "${area}" ${isResidential ? 'property for sale' : primaryKw}`, include_domains: ['bayut.com'], search_depth: 'advanced', max_results: 8 },
+      { label: 'area_listings_3', query: `"${area}" ${primaryKw} AED ${isResidential ? 'bedrooms' : 'sqft'} ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
     );
   } else if (countryCode === 'US') {
-    listingQueries.push(
-      { label: 'area_listings', query: `site:redfin.com "${postalCode || area}" home for sale`, include_domains: ['redfin.com'], search_depth: 'advanced', max_results: 10 },
-      { label: 'area_listings_2', query: `site:zillow.com "${postalCode || area}" house for sale`, include_domains: ['zillow.com'], search_depth: 'advanced', max_results: 8 },
-      { label: 'area_listings_3', query: `"${area}" ${postalCode} property for sale bedrooms price`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
-    );
+    if (isResidential) {
+      listingQueries.push(
+        { label: 'area_listings', query: `site:redfin.com "${postalCode || area}" home for sale`, include_domains: ['redfin.com'], search_depth: 'advanced', max_results: 10 },
+        { label: 'area_listings_2', query: `site:zillow.com "${postalCode || area}" house for sale`, include_domains: ['zillow.com'], search_depth: 'advanced', max_results: 8 },
+        { label: 'area_listings_3', query: `"${area}" ${postalCode} property for sale bedrooms price`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
+      );
+    } else {
+      // LoopNet / Crexi are the dominant US commercial portals.
+      listingQueries.push(
+        { label: 'area_listings', query: `site:loopnet.com "${area}" ${primaryKw}`, include_domains: ['loopnet.com'], search_depth: 'advanced', max_results: 10 },
+        { label: 'area_listings_2', query: `site:crexi.com "${area}" ${primaryKw}`, include_domains: ['crexi.com'], search_depth: 'advanced', max_results: 8 },
+        { label: 'area_listings_3', query: `"${area}" ${postalCode} ${primaryKw} price sqft ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 5 },
+      );
+    }
   } else {
     listingQueries.push(
-      { label: 'area_listings', query: `properties for sale in ${area} price bedrooms ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 10 },
-      { label: 'area_listings_2', query: `${area} ${postalCode} property for sale price bedrooms sqm`, include_domains: [], search_depth: 'advanced', max_results: 5 },
+      { label: 'area_listings', query: `${primaryKw} in ${area} price ${isResidential ? 'bedrooms' : 'sqm'} ${new Date().getFullYear()}`, include_domains: domains.property, search_depth: 'advanced', max_results: 10 },
+      { label: 'area_listings_2', query: `${area} ${postalCode} ${secondaryKw} price ${isResidential ? 'bedrooms' : 'sqm m²'}`, include_domains: [], search_depth: 'advanced', max_results: 5 },
     );
   }
 
@@ -390,10 +455,11 @@ async function tavilySearch(query, options = {}) {
   return resp.json();
 }
 
-async function tavilyPropertySearch(address, countryCode, currency, geo) {
+async function tavilyPropertySearch(address, countryCode, currency, geo, category) {
   if (!TAVILY_API_KEY || !anthropic) return null;
   try {
-    const queries = buildTavilyQueries(address, countryCode, geo);
+    const cat = normalizeCategory(category);
+    const queries = buildTavilyQueries(address, countryCode, geo, cat);
     const allResults = {};
     const allSources = [];
     const searchQueries = [];
@@ -434,9 +500,23 @@ async function tavilyPropertySearch(address, countryCode, currency, geo) {
 
     log(`Tavily found ${allSources.length} web sources across ${searchQueries.length} queries`);
 
+    // Category-aware framing for the extraction prompt — tells Claude which
+    // property type the comparable listings should match (residential houses
+    // vs warehouses vs offices vs land etc.).
+    const categoryFraming = (() => {
+      if (cat === 'residential') return 'PROPERTY CATEGORY: Residential (house / apartment / townhouse / villa). Comparable listings should be other residential homes for sale in the same area.';
+      if (cat === 'industrial') return 'PROPERTY CATEGORY: Industrial (warehouse / factory / industrial space). Comparable listings should be other industrial properties for sale in the same area. Bedroom counts are NOT relevant — focus on size_sqm, lot_size_sqm, and price.';
+      if (cat === 'commercial') return 'PROPERTY CATEGORY: Commercial / Investment property. Comparable listings should be other commercial / investment properties for sale in the same area. Bedroom counts are NOT relevant — focus on size_sqm, lot_size_sqm, GLA, and price.';
+      if (cat === 'retail') return 'PROPERTY CATEGORY: Retail (shop / showroom / retail space). Comparable listings should be other retail properties for sale in the same area. Bedroom counts are NOT relevant — focus on size_sqm and price.';
+      if (cat === 'office') return 'PROPERTY CATEGORY: Office space / office building. Comparable listings should be other office properties for sale in the same area. Bedroom counts are NOT relevant — focus on size_sqm (GLA) and price.';
+      if (cat === 'land') return 'PROPERTY CATEGORY: Land / vacant land / agricultural. Comparable listings should be other land/plot listings for sale in the same area. Bedroom counts are NOT relevant — focus on lot_size_sqm and price.';
+      return '';
+    })();
+
     const extractionPrompt = `You are a property data extraction specialist. Below are REAL web search results about a property and its area. Extract structured data from these results.
 
 ADDRESS: ${address}
+${categoryFraming}
 COUNTRY CODE: ${countryCode || 'Unknown'}
 CITY: ${geo.city || 'Unknown'}
 SUBURB/AREA: ${geo.suburb || geo.state || 'Unknown'}
@@ -494,15 +574,15 @@ Extract ONLY data that is explicitly stated in the search results above. Return 
       {
         "title": "<listing title — include address or unit info>",
         "price": <integer — the ACTUAL listed price, NOT an average>,
-        "bedrooms": <int or null>,
-        "bathrooms": <int or null>,
-        "size_sqm": <int or null — property size in square meters>,
+        "bedrooms": <int or null — only fill for residential listings>,
+        "bathrooms": <int or null — only fill for residential listings>,
+        "size_sqm": <int or null — property size / building size in square meters; CRITICAL for commercial / industrial>,
         "size_sqft": <int or null — property size in square feet>,
-        "lot_size_sqm": <int or null — land/erf size if mentioned>,
-        "property_type": "<apartment|house|villa|townhouse|penthouse|land|duplex|other>",
+        "lot_size_sqm": <int or null — land/erf/yard size if mentioned>,
+        "property_type": "<apartment|house|villa|townhouse|penthouse|land|duplex|warehouse|factory|industrial|office|retail|showroom|investment|other>",
         "address": "<street address or area if available>",
         "url": "<FULL direct URL to this specific listing — REQUIRED>",
-        "source_portal": "<portal name e.g. Zillow, Property24, Bayut>"
+        "source_portal": "<portal name e.g. Zillow, Property24, Bayut, LoopNet, Crexi>"
       }
     ],
     "source": "<primary portal name and URL>"
@@ -800,16 +880,17 @@ app.post('/', async (req, res) => {
   const sources = [];
 
   try {
-    const { address, requestId, country } = req.body;
+    const { address, requestId, country, category } = req.body;
 
     if (!address) {
       return res.status(400).json({
         error: 'Missing required parameter: address',
-        example: { address: '123 Main Street, City, Country', requestId: 'optional-uuid', country: 'ZA (optional)' }
+        example: { address: '123 Main Street, City, Country', requestId: 'optional-uuid', country: 'ZA (optional)', category: 'residential|commercial|industrial|retail|office|land (optional)' }
       });
     }
 
-    log(`Request ${requestId || '-'} | Processing: ${address}`);
+    const normalizedCategory = normalizeCategory(category);
+    log(`Request ${requestId || '-'} | Processing: ${address} | category=${normalizedCategory}`);
 
     // ── TIER 1: Google Geocoding ──────────────────────────────────────
     const geo = await googleGeocode(address);
@@ -852,7 +933,7 @@ app.post('/', async (req, res) => {
     let webSearchResult = null;
     if (TAVILY_API_KEY && anthropic) {
       log('Starting Tier 3: Tavily web search + Claude extraction...');
-      webSearchResult = await tavilyPropertySearch(address, countryCode, currency, geo);
+      webSearchResult = await tavilyPropertySearch(address, countryCode, currency, geo, normalizedCategory);
       if (webSearchResult) {
         sources.push(`Tavily Web Search (${webSearchResult.grounding.source_count} web sources)`);
         log(`Tavily+Claude found ${webSearchResult.grounding.source_count} web sources across ${webSearchResult.grounding.search_queries.length} queries`);

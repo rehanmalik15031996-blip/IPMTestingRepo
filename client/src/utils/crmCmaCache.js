@@ -56,3 +56,24 @@ export function setCMACustomPhoto(userId, lead, dataUrlOrNull) {
         localStorage.setItem(STORAGE_KEY(userId), JSON.stringify(cache));
     } catch (_) {}
 }
+
+/**
+ * Bust the cached metadata for a single lead so the next CMA render re-hits
+ * the listing-metadata API. Preserves the custom photo by default — pass
+ * `{ keepPhoto: false }` to clear that too.
+ */
+export function clearCMACacheForLead(userId, lead, { keepPhoto = true } = {}) {
+    const key = getLeadCacheKey(lead);
+    if (!key) return;
+    try {
+        const cache = getCMACache(userId);
+        const existing = cache[key];
+        if (!existing) return;
+        if (keepPhoto && existing.customPhoto) {
+            cache[key] = { customPhoto: existing.customPhoto };
+        } else {
+            delete cache[key];
+        }
+        localStorage.setItem(STORAGE_KEY(userId), JSON.stringify(cache));
+    } catch (_) {}
+}

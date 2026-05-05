@@ -53,18 +53,20 @@ const Inbox = () => {
         else setLoading(false);
     }, [accounts.length, fetchMessages]);
 
-    // Open compose from query (e.g. /inbox?compose=1&to=lead@example.com&subject=...)
+    // Open compose from query (e.g. /inbox?compose=1&to=lead@example.com&subject=...&body=...)
     useEffect(() => {
         const compose = searchParams.get('compose');
         const to = searchParams.get('to');
         const subject = searchParams.get('subject') || '';
+        const body = searchParams.get('body') || '';
         if (compose === '1' && to && accounts.length > 0) {
             setComposeTo(decodeURIComponent(to));
             setComposeSubject(decodeURIComponent(subject));
+            if (body) setComposeBody(decodeURIComponent(body));
             setComposeOpen(true);
             setSearchParams({});
         }
-    }, [searchParams, accounts.length]);
+    }, [searchParams, accounts.length, setSearchParams]);
 
     useEffect(() => {
         if (!selectedId || !userId) {

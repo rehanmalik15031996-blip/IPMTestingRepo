@@ -1,6 +1,6 @@
 {
   "name": "ipm-metadata-service",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "myIPM Property Intelligence API — Real Data First (Tavily + Claude)",
   "main": "index.js",
   "scripts": {

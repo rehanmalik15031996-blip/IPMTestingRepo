@@ -13,6 +13,7 @@ import DashboardLegacy from './legacy/DashboardLegacy';
 import EnterpriseDashboard from './EnterpriseDashboard';
 import AdminDashboardLists from '../components/AdminDashboardLists';
 import { getDashboardCache, setDashboardCache, invalidateDashboardCache, takeDashboardInvalidated, DASHBOARD_INVALIDATED_KEY } from '../config/dashboardCache';
+import { getSalesCache, setSalesCache, takeSalesInvalidated } from '../config/salesCache';
 import { brand, getStatusColor } from '../config/brandColors';
 import { sanitizeAgencyBranchDisplay } from '../utils/display';
 import { isNewsOrPropertySourceUrl } from '../utils/newsUrl';
@@ -34,14 +35,22 @@ const DEFAULT_NEWS_FEEDS = [
 
 // --- Map: DashboardMapCard with hasInitedRef (same fix as tiles – stable deps, init once) ---
 let dashboardMapScriptPromise = null;
+// Black-and-white map styling — matches Prospecting tab for visual consistency.
 const dashboardMapStyles = [
-    { featureType: 'all', elementType: 'geometry', stylers: [{ color: '#f8fafc' }] },
-    { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#e2e8f0' }] },
-    { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#a3a3a3' }] },
-    { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#e2e8f0' }] }
+    { elementType: 'geometry', stylers: [{ saturation: -100 }, { lightness: 5 }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#5f6368' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
+    { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+    { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#bdbdbd' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ saturation: -100 }, { lightness: 20 }] },
+    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#e8e8e8' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#cccccc' }] },
+    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#e0e0e0' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+    { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] }
 ];
 const loadDashboardMapScript = (apiKey) => {
     if (!apiKey) return Promise.reject(new Error('Missing Google Maps API key'));
@@ -56,7 +65,11 @@ const loadDashboardMapScript = (apiKey) => {
                 return;
             }
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+            // Load all libraries the app uses anywhere (drawing/geometry are needed by
+            // the Prospecting tab; places is harmless overhead). We must request them
+            // up-front because if we lazy-load later, the script tag is already in
+            // the DOM and Google won't re-evaluate its libraries param.
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,drawing,geometry`;
             script.async = true;
             script.defer = true;
             script.setAttribute('data-google-maps', 'core');
@@ -70,6 +83,24 @@ const loadDashboardMapScript = (apiKey) => {
 const DASHBOARD_MAP_CENTER = { lat: 15, lng: 0 };
 const DASHBOARD_MAP_ZOOM = 3;
 const EMPTY_LIST_STABLE = []; // Stable ref so map does not re-init when only sort changes (agency view passes listData=[])
+
+// Hide the Google attribution + bottom controls *only* inside the dashboard map card.
+// (Done via a scoped class so we don't affect any other Google Map on the app.)
+if (typeof document !== 'undefined' && !document.getElementById('dashboard-map-attribution-hide')) {
+    const styleEl = document.createElement('style');
+    styleEl.id = 'dashboard-map-attribution-hide';
+    styleEl.textContent = `
+        .dashboard-map-clean .gm-style-cc,
+        .dashboard-map-clean a[href^="https://maps.google.com/maps"],
+        .dashboard-map-clean a[href^="https://www.google.com/maps"],
+        .dashboard-map-clean a[title*="Google"],
+        .dashboard-map-clean img[alt="Google"],
+        .dashboard-map-clean .gmnoprint:not(.gm-bundled-control) {
+            display: none !important;
+        }
+    `;
+    document.head.appendChild(styleEl);
+}
 
 /** Prefer DB/import coordinates (same sources as Property.js); avoids blank maps when address strings are empty. */
 function getLatLngForDashboardItem(item) {
@@ -168,14 +199,15 @@ function DashboardMapCard({ loading, userRole, listData, agentProperties }) {
             listenersRef.current = { refreshMap, handleVisibility, resizeTimer };
         };
 
+        // Small, semi-transparent yellow dot — matches Prospecting visual language.
         const pinIcon = (google) => ({
-            url:
-                'data:image/svg+xml,' +
-                encodeURIComponent(
-                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#ffc801"/></svg>'
-                ),
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(12, 24)
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 6,
+            fillColor: '#ffc801',
+            fillOpacity: 0.5,
+            strokeColor: '#ffc801',
+            strokeOpacity: 0.7,
+            strokeWeight: 1
         });
 
         const fitMapToBounds = (map, bounds, markerCount) => {
@@ -307,7 +339,7 @@ function DashboardMapCard({ loading, userRole, listData, agentProperties }) {
         <div style={{ ...whiteCard, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
             <div style={cardHeaderSmall}>ACTIVE PROPERTIES BY REGION</div>
             <div style={mapContainerLocal}>
-                <div ref={mapContainerRef} style={{ position: 'absolute', inset: 0, minHeight: 160, minWidth: 100 }} />
+                <div ref={mapContainerRef} className="dashboard-map-clean" style={{ position: 'absolute', inset: 0, minHeight: 160, minWidth: 100 }} />
             </div>
         </div>
     );
@@ -369,7 +401,8 @@ const Dashboard = () => {
     const devScrollRef = useRef(null);
     const agentDevScrollRef = useRef(null);
     const [topAgentsSortBy, setTopAgentsSortBy] = useState('revenue'); // 'revenue' | 'percent'
-    const [topBranchesSortBy, setTopBranchesSortBy] = useState('revenue'); // 'revenue' | 'percent'
+    // Deals from /api/agency/sales-deals — drives the Commission Probability Pipeline tile
+    const [salesDeals, setSalesDeals] = useState([]);
     const [selectedNews, setSelectedNews] = useState(null);
     const [savedNews, setSavedNews] = useState(() => {
         try {
@@ -461,6 +494,25 @@ const Dashboard = () => {
             }
             if (cacheKey) setDashboardCache(cacheKey, res.data);
             applyDashboardData(res.data);
+            // Mirror freshly-computed agent tier/score onto the cached
+            // localStorage user so the Sidebar's "Tier" + "IPM Score" pills
+            // update without a full re-login. Skips agent-preview mode where
+            // the logged-in user isn't the one being viewed.
+            if (!isPreview && (res.data?.agentTier != null || res.data?.agentScore != null)) {
+                try {
+                    const stored = JSON.parse(localStorage.getItem('user') || 'null');
+                    if (stored && String(stored._id) === String(dashboardFetchUserId)) {
+                        const next = {
+                            ...stored,
+                            ...(res.data.agentTier != null ? { agentTier: res.data.agentTier } : {}),
+                            ...(res.data.agentScore != null ? { agentScore: res.data.agentScore } : {}),
+                            ...(res.data.agencyName ? { agencyName: res.data.agencyName } : {}),
+                            ...(res.data.branchName ? { branchName: res.data.branchName } : {}),
+                        };
+                        localStorage.setItem('user', JSON.stringify(next));
+                    }
+                } catch (_) {}
+            }
             setLoading(false);
             const role = userRole?.toLowerCase();
             if (isPreview) {
@@ -489,6 +541,27 @@ const Dashboard = () => {
     useEffect(() => {
         fetchDashboardData();
     }, [fetchDashboardData]);
+
+    // Fetch sales deals for the Commission Probability Pipeline tile.
+    // Cache-first like the Sales page so re-entries are instant. Runs for
+    // agencies and any agent role — the API scopes deals to the caller's
+    // listings automatically, so each user only ever sees their own.
+    useEffect(() => {
+        const r = userRole?.toLowerCase();
+        const canSeeDeals = r === 'agency' || r === 'agency_agent' || r === 'independent_agent' || r === 'agent';
+        if (!canSeeDeals || !userId) return;
+        const cached = getSalesCache(userId);
+        if (cached?.deals) setSalesDeals(cached.deals);
+        const wasInvalidated = takeSalesInvalidated();
+        if (cached && !wasInvalidated) return; // hydrated, no need to refetch right away
+        api.get('/api/agency/sales-deals')
+            .then((res) => {
+                const list = Array.isArray(res.data?.deals) ? res.data.deals : [];
+                setSalesDeals(list);
+                setSalesCache(userId, { ...(getSalesCache(userId) || {}), deals: list });
+            })
+            .catch((err) => console.warn('Sales deals fetch failed:', err?.message || err));
+    }, [userId, userRole]);
 
     useEffect(() => {
         if (userRole?.toLowerCase() === 'agency' && !previewAgentParam) setPreviewAgentDisplay(null);
@@ -803,58 +876,12 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-                {/* BRANCH RANKING — same layout as Top Agents: Sort by Sold value / % of target, columns Branch | Sales | % Target */}
-                <div style={cardStyle}>
-                    <h4 style={cardTitle}>BRANCH RANKING</h4>
-                    {(branches && branches.length > 0) ? (
-                        <>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '11px', color: '#64748b' }}>Sort by:</span>
-                                <button type="button" onClick={() => setTopBranchesSortBy('revenue')} style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '8px', border: topBranchesSortBy === 'revenue' ? '1px solid #11575C' : '1px solid #e2e8f0', background: topBranchesSortBy === 'revenue' ? '#f0fdf4' : 'white', color: topBranchesSortBy === 'revenue' ? '#11575C' : '#64748b', cursor: 'pointer', fontWeight: '600' }}>Sold value</button>
-                                <button type="button" onClick={() => setTopBranchesSortBy('percent')} style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '8px', border: topBranchesSortBy === 'percent' ? '1px solid #11575C' : '1px solid #e2e8f0', background: topBranchesSortBy === 'percent' ? '#f0fdf4' : 'white', color: topBranchesSortBy === 'percent' ? '#11575C' : '#64748b', cursor: 'pointer', fontWeight: '600' }}>% of target</button>
-                                    </div>
-                            <div style={{ marginTop: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 56px', gap: '10px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '2px solid #e2e8f0', fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                                    <span>Branch</span>
-                                    <span style={{ textAlign: 'right' }}>Sales</span>
-                                    <span style={{ textAlign: 'right' }}>% target</span>
-                                </div>
-                                {(() => {
-                                    const topAgents = data.stats.topAgents || [];
-                                    const branchStats = (branches || []).map((branch) => {
-                                        const branchId = branch._id ? String(branch._id) : null;
-                                        const branchName = branch.name || 'Branch';
-                                        const agentsInBranch = topAgents.filter((a) => (a.branchId && String(a.branchId) === branchId) || (a.branch === branchName) || (a.branchName === branchName));
-                                        const totalSales = agentsInBranch.reduce((sum, a) => sum + (convertToPreferredCurrency(a.totalSales || 0, 'USD') || 0), 0);
-                                        const percents = agentsInBranch.map((a) => a.percentOfTarget).filter((p) => p != null);
-                                        const percentTarget = percents.length > 0 ? Math.round(percents.reduce((s, p) => s + p, 0) / percents.length) : null;
-                                        return { branch, branchName, totalSales, percentTarget };
-                                    });
-                                    const sorted = [...branchStats].sort((a, b) => {
-                                        if (topBranchesSortBy === 'revenue') return (b.totalSales || 0) - (a.totalSales || 0);
-                                        const pa = a.percentTarget != null ? a.percentTarget : -1;
-                                        const pb = b.percentTarget != null ? b.percentTarget : -1;
-                                        return pb - pa;
-                                    });
-                                    return sorted.map((row, i) => (
-                                        <div key={row.branch._id || i} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 56px', gap: '10px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}>
-                                            <div style={{ fontWeight: '600', color: '#1a1a1a' }}>{sanitizeAgencyBranchDisplay(row.branchName) || '—'}</div>
-                                            <div style={{ textAlign: 'right', fontWeight: '600', color: '#11575C', fontSize: '12px' }}>{formatAssetValueCompact(row.totalSales)}</div>
-                                            <div style={{ textAlign: 'right', fontWeight: '600', fontSize: '12px', color: row.percentTarget != null && row.percentTarget >= 100 ? '#15803d' : '#b45309' }}>
-                                                {row.percentTarget != null ? `${row.percentTarget}%` : '—'}
-                                            </div>
-                                        </div>
-                                    ));
-                                })()}
-                            </div>
-                        </>
-                    ) : (
-                        <div style={{ textAlign: 'center', padding: '30px 20px', color: '#888' }}>
-                            <i className="fas fa-map-marker-alt" style={{ fontSize: '36px', marginBottom: '10px', opacity: 0.3 }}></i>
-                            <p style={{ fontSize: '13px' }}>No branches yet. Add branches when inviting agents.</p>
-                            </div>
-                        )}
-                </div>
+                {/* COMMISSION PROBABILITY PIPELINE — replaces Branch Ranking. Shows weighted internal commission across active deals. */}
+                <CommissionPipelineTile
+                    deals={salesDeals}
+                    formatAssetValueCompact={formatAssetValueCompact}
+                    navigate={navigate}
+                />
             </div>
 
             {/* Row 3: DEVELOPMENT + MARKET SHARE | SALES BY REGION + NEWS FEEDS | MARKET TRENDS (full height) */}
@@ -944,35 +971,46 @@ const Dashboard = () => {
                         })()}
                     </div>
                 </div>
-                {/* Column 2: Sales by Region (same height as dev tile) + News Feeds */}
+                {/* Column 2: Sales by Area (suburb-grouped, same height as dev tile) + News Feeds */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minHeight: 0 }}>
                     <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                        <h4 style={cardTitle}>SALES BY REGION</h4>
+                        <h4 style={cardTitle}>SALES BY AREA</h4>
                         <div style={{ marginTop: '10px', height: '110px', overflowY: 'auto' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: '10px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '2px solid #e2e8f0', fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                                <span>Country</span>
-                                <span style={{ textAlign: 'right' }}>Sales</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 90px', gap: '10px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '2px solid #e2e8f0', fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                                <span>Suburb</span>
+                                <span style={{ textAlign: 'right' }}>Sold</span>
+                                <span style={{ textAlign: 'right' }}>Total</span>
                         </div>
                             {(() => {
-                                const soldByCountry = {};
+                                const soldBySuburb = {};
                                 (agentProperties || []).forEach((p) => {
-                                    if ((p.status || '') !== 'Sold' || (p.salePrice == null && !p.pricing?.currency)) return;
-                                    const country = (p.locationDetails && p.locationDetails.country) || (p.location && String(p.location).split(',').pop?.()?.trim()) || 'Unknown';
-                                    const key = String(country).trim() || 'Unknown';
-                                    if (!soldByCountry[key]) soldByCountry[key] = 0;
-                                    soldByCountry[key] += convertToPreferredCurrency(p.salePrice || 0, (p.pricing && p.pricing.currency) || 'USD');
+                                    if ((p.status || '') !== 'Sold') return;
+                                    // Prefer the structured suburb; fall back to the second-to-last
+                                    // segment of a comma-separated location string (typical pattern:
+                                    // "Street, Suburb, City, Country") so seeded listings still bucket.
+                                    const loc = p.locationDetails || {};
+                                    let suburb = loc.suburb || loc.area || loc.neighbourhood;
+                                    if (!suburb && p.location) {
+                                        const parts = String(p.location).split(',').map((s) => s.trim()).filter(Boolean);
+                                        if (parts.length >= 2) suburb = parts[parts.length - 2];
+                                    }
+                                    const key = (suburb && String(suburb).trim()) || 'Unknown';
+                                    if (!soldBySuburb[key]) soldBySuburb[key] = { count: 0, total: 0 };
+                                    soldBySuburb[key].count += 1;
+                                    soldBySuburb[key].total += convertToPreferredCurrency(p.salePrice || p.pricing?.askingPrice || 0, (p.pricing && p.pricing.currency) || 'USD');
                                 });
-                                const rows = Object.entries(soldByCountry).map(([country, total]) => ({ country, total })).sort((a, b) => (b.total || 0) - (a.total || 0));
+                                const rows = Object.entries(soldBySuburb).map(([suburb, v]) => ({ suburb, count: v.count, total: v.total })).sort((a, b) => (b.total || 0) - (a.total || 0));
                                 if (rows.length === 0) {
                                     return (
                                         <div style={{ textAlign: 'center', padding: '16px', color: '#94a3b8', fontSize: '13px' }}>
-                                            No sales by region yet.
+                                            No sold listings yet.
                     </div>
                                     );
                                 }
                                 return rows.map((row, i) => (
-                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: '10px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}>
-                                        <div style={{ fontWeight: '600', color: '#1a1a1a' }}>{row.country}</div>
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 90px', gap: '10px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}>
+                                        <div style={{ fontWeight: '600', color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.suburb}</div>
+                                        <div style={{ textAlign: 'right', fontWeight: '600', color: '#475569', fontSize: '12px' }}>{row.count}</div>
                                         <div style={{ textAlign: 'right', fontWeight: '600', color: '#11575C', fontSize: '12px' }}>{formatAssetValueCompact(row.total)}</div>
                                     </div>
                                 ));
@@ -1324,11 +1362,15 @@ const Dashboard = () => {
                             ) : (
                                 <DashboardMapCard loading={loading} userRole={viewUser?.role} listData={data.listData} agentProperties={agentProperties} />
                             )}
-                            <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '20px' }}>
-                                <h4 style={{ ...cardTitle, marginBottom: '12px' }}>ACTIVE PROPERTIES</h4>
-                                <div style={{ fontSize: '32px', fontWeight: '800', color: '#11575C', textAlign: 'center' }}>{data.stats.totalListings ?? data.stats.totalProperties ?? data.listData?.length ?? 0}</div>
-                                <div style={{ fontSize: '12px', color: '#888', textAlign: 'center', marginTop: '4px' }}>from Listing Management</div>
-                            </div>
+                            {/* COMMISSION PROBABILITY PIPELINE — replaces the
+                                old Active Properties counter so agents see a
+                                forward-looking earnings view (deal value × %
+                                probability of sale) instead of a raw count. */}
+                            <CommissionPipelineTile
+                                deals={salesDeals}
+                                formatAssetValueCompact={formatAssetValueCompact}
+                                navigate={navigate}
+                            />
                         </div>
                         <div className="dashboard-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px', flexShrink: 0, minHeight: 0 }}>
                             <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', height: 340 }}>
@@ -1455,12 +1497,24 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flexShrink: 0, marginBottom: '24px' }}>
-                            <InvestorComingSoonOverlay {...overlayProps}>
-                                <div style={cardStyle}><h4 style={cardTitle}>CALENDAR + SCHEDULE</h4><div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px' }}>Calendar view</div></div>
-                            </InvestorComingSoonOverlay>
-                            <InvestorComingSoonOverlay {...overlayProps}>
-                                <div style={cardStyle}><h4 style={cardTitle}>MARKET INSIGHTS</h4><div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px' }}>Avg price change, days on market, latest news</div></div>
-                            </InvestorComingSoonOverlay>
+                            <AgentCalendarTile />
+                            <div style={cardStyle}>
+                                <h4 style={{ ...cardTitle, marginBottom: 6 }}>MARKET INSIGHTS</h4>
+                                <p style={{ fontSize: '9px', color: brand.muted, margin: '0 0 8px', textAlign: 'center', lineHeight: 1.3 }}>
+                                    {data.marketTrends?.some((t) => t.monthlyData?.length > 0)
+                                        ? 'Official index values (raw). YoY from data. Do not compare numbers across countries — each uses its own base. Source per region below.'
+                                        : 'Charts: 12‑month trend. Growth % is YoY.'}
+                                </p>
+                                <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
+                                    {data.marketTrends && data.marketTrends.length > 0 ? (
+                                        data.marketTrends.map((trend, i) => (
+                                            <TrendRow key={i} country={trend.country} status={trend.sentiment || trend.status} color={getStatusColor(trend.sentiment || trend.status) || trend.color} price={trend.yoyPercent != null && trend.yoyPercent !== '' ? trend.yoyPercent : trend.priceChange} monthlyData={trend.monthlyData} sourceText={trend.sourceText} interpretation={trend.interpretation} />
+                                        ))
+                                    ) : (
+                                        <div style={{ fontSize: '12px', color: brand.muted, padding: '12px 0', textAlign: 'center' }}>No trends for your markets yet.</div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                         {/* DEVELOPMENT MANAGEMENT — scrollable cards for agents */}
                         <div style={{ ...cardStyle, flexShrink: 0, marginBottom: '24px' }}>
@@ -1899,6 +1953,84 @@ const StatBoxCentered = ({ label, value, subtext, percentText }) => (
     </div>
 );
 
+/**
+ * Replaces the legacy Branch Ranking tile with a probability-weighted
+ * commission forecast for deals currently in the sales pipeline.
+ *
+ * Per deal:
+ *   pool             = (offerPrice || askingPrice) × commissionRatePct%
+ *   internalShare    = sum(party.sharePct% where party.source === 'internal')
+ *   internalEarnings = pool × internalShare
+ *   weightedValue    = internalEarnings × probabilityOfSale%
+ *
+ * Tile shows:
+ *   - per-deal row with weighted value and probability
+ *   - total weighted value summed across deals (excludes Closed Won/Lost)
+ */
+function CommissionPipelineTile({ deals, formatAssetValueCompact, navigate }) {
+    const rows = (deals || [])
+        .filter((d) => d.stageId !== 'won' && d.stageId !== 'lost')
+        .map((d) => {
+            const price = Number(d.offerPrice) || Number(d.askingPrice) || 0;
+            const pool = price * (Number(d.commissionRatePct) || 0) / 100;
+            const internalShare = (d.commissionParties || [])
+                .filter((p) => (p.source || 'internal') === 'internal')
+                .reduce((acc, p) => acc + (Number(p.sharePct) || 0), 0) / 100;
+            const internalEarnings = pool * internalShare;
+            const probability = (Number(d.probabilityOfSale) || 0) / 100;
+            const weightedValue = internalEarnings * probability;
+            return { id: d.id, title: d.propertyTitle || 'Untitled', address: d.propertyAddress || '', internalEarnings, probability, weightedValue, ready: pool > 0 && internalShare > 0 && probability > 0 };
+        })
+        .sort((a, b) => b.weightedValue - a.weightedValue);
+
+    const total = rows.reduce((acc, r) => acc + r.weightedValue, 0);
+
+    return (
+        <div style={cardStyle}>
+            <h4 style={cardTitle}>COMMISSION PROBABILITY PIPELINE</h4>
+            {rows.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px 20px', color: '#888' }}>
+                    <i className="fas fa-percent" style={{ fontSize: '36px', marginBottom: '10px', opacity: 0.3 }}></i>
+                    <p style={{ fontSize: '13px' }}>No active deals yet. Listings flipped to "Under Negotiation" appear here.</p>
+                </div>
+            ) : (
+                <>
+                    <div style={{ marginTop: '10px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Weighted forecast</span>
+                        <span style={{ fontSize: '20px', fontWeight: 800, color: '#11575C' }}>{formatAssetValueCompact(total)}</span>
+                    </div>
+                    <div style={{ marginTop: '4px', maxHeight: '180px', overflowY: 'auto' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px', gap: '8px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '2px solid #e2e8f0', fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                            <span>Property</span>
+                            <span style={{ textAlign: 'right' }}>Prob.</span>
+                            <span style={{ textAlign: 'right' }}>Value</span>
+                        </div>
+                        {rows.map((row) => (
+                            <div
+                                key={row.id}
+                                onClick={() => navigate('/sales')}
+                                style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px', gap: '8px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px', cursor: 'pointer' }}
+                                title={row.ready ? 'Open Sales pipeline' : 'Add commission % and probability on the Listings page to see weighted value'}
+                            >
+                                <div>
+                                    <div style={{ fontWeight: '600', color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
+                                    {row.address && <div style={{ fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.address}</div>}
+                                </div>
+                                <div style={{ textAlign: 'right', fontWeight: '600', fontSize: '12px', color: row.probability >= 0.7 ? '#15803d' : row.probability >= 0.4 ? '#b45309' : '#94a3b8' }}>
+                                    {row.probability ? `${Math.round(row.probability * 100)}%` : '—'}
+                                </div>
+                                <div style={{ textAlign: 'right', fontWeight: '600', color: '#11575C', fontSize: '12px' }}>
+                                    {row.ready ? formatAssetValueCompact(row.weightedValue) : '—'}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
 const RegionProgress = ({ label, val }) => (
     <div style={{marginBottom: '15px'}}>
         <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '5px'}}>
@@ -1977,6 +2109,175 @@ const TrendRow = ({ country, status, color, price, monthlyData, sourceText, inte
             )}
     </div>
 );
+};
+
+// Demo-data calendar used on the agent dashboard. Generates a deterministic
+// set of viewings / meetings / calls for the visible month so the tile feels
+// alive without real data backing it yet. Hooks live inside the component (it
+// can't sit inside renderInvestorView, which isn't a true component).
+const CALENDAR_EVENT_TEMPLATES = [
+    { type: 'Viewing',   icon: 'fa-eye',          color: '#11575C', bg: '#dcfce7', label: 'Viewing',   pool: ['12 Park Lane', '88 Sandton Drive', '4 Atlantic Quay', '23 Marina Heights', '7 Riverside Mews'] },
+    { type: 'Meeting',   icon: 'fa-handshake',    color: '#1e40af', bg: '#dbeafe', label: 'Meeting',   pool: ['Roger Smith', 'Zara Aziz', 'Daniel Becker', 'Sophia Linden', 'Theo Page'] },
+    { type: 'Call',      icon: 'fa-phone',        color: '#b45309', bg: '#fef3c7', label: 'Call',      pool: ['Marder HQ', 'Kim Walker', 'Investor follow-up', 'Lender callback', 'Mortgage broker'] },
+    { type: 'Open day',  icon: 'fa-door-open',    color: '#7c3aed', bg: '#ede9fe', label: 'Open day',  pool: ['Hyde Vista launch', 'Phoenix Square preview', '3 The Oaks open house'] },
+    { type: 'Valuation', icon: 'fa-clipboard-check', color: '#0d9488', bg: '#ccfbf1', label: 'Valuation', pool: ['9 Albany Park', '156 Greenstone', '21 Constantia Heights'] },
+];
+
+function buildFakeAgentEvents(year, month) {
+    const seed = year * 12 + month;
+    const rand = (i) => {
+        const x = Math.sin(seed * 9301 + i * 49297) * 233280;
+        return x - Math.floor(x);
+    };
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const targetDays = Math.min(14, daysInMonth);
+    const days = new Set();
+    // Bounded loop: counter advances every iteration so we can't spin forever
+    // when the PRNG happens to produce a duplicate day.
+    for (let i = 1; i < 200 && days.size < targetDays; i++) {
+        days.add(1 + Math.floor(rand(i) * daysInMonth));
+    }
+    const events = [];
+    Array.from(days).forEach((day, idx) => {
+        const tmpl = CALENDAR_EVENT_TEMPLATES[Math.floor(rand(idx + 100) * CALENDAR_EVENT_TEMPLATES.length)];
+        const subject = tmpl.pool[Math.floor(rand(idx + 200) * tmpl.pool.length)];
+        const hour = 8 + Math.floor(rand(idx + 300) * 10);
+        const minute = Math.floor(rand(idx + 400) * 4) * 15;
+        events.push({
+            day,
+            time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+            type: tmpl.type, label: tmpl.label, icon: tmpl.icon, color: tmpl.color, bg: tmpl.bg,
+            subject,
+        });
+        if (rand(idx + 500) > 0.7) {
+            const tmpl2 = CALENDAR_EVENT_TEMPLATES[(idx + 1) % CALENDAR_EVENT_TEMPLATES.length];
+            const subject2 = tmpl2.pool[Math.floor(rand(idx + 600) * tmpl2.pool.length)];
+            const hour2 = Math.min(18, hour + 2 + Math.floor(rand(idx + 700) * 3));
+            events.push({
+                day,
+                time: `${String(hour2).padStart(2, '0')}:00`,
+                type: tmpl2.type, label: tmpl2.label, icon: tmpl2.icon, color: tmpl2.color, bg: tmpl2.bg,
+                subject: subject2,
+            });
+        }
+    });
+    return events.sort((a, b) => a.day - b.day || a.time.localeCompare(b.time));
+}
+
+const AgentCalendarTile = () => {
+    const todayDate = new Date();
+    const [view, setView] = React.useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() });
+    const [selectedDay, setSelectedDay] = React.useState(todayDate.getDate());
+
+    const events = React.useMemo(() => buildFakeAgentEvents(view.year, view.month), [view.year, view.month]);
+    const eventsByDay = React.useMemo(() => {
+        const map = {};
+        events.forEach((e) => { (map[e.day] = map[e.day] || []).push(e); });
+        return map;
+    }, [events]);
+
+    const monthName = new Date(view.year, view.month, 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+    const firstDow = (new Date(view.year, view.month, 1).getDay() + 6) % 7; // Mon=0
+    const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
+    const isToday = (d) => view.year === todayDate.getFullYear() && view.month === todayDate.getMonth() && d === todayDate.getDate();
+
+    const cells = [];
+    for (let i = 0; i < firstDow; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7) cells.push(null);
+
+    const goPrev = () => setView((v) => {
+        const m = v.month - 1; return m < 0 ? { year: v.year - 1, month: 11 } : { year: v.year, month: m };
+    });
+    const goNext = () => setView((v) => {
+        const m = v.month + 1; return m > 11 ? { year: v.year + 1, month: 0 } : { year: v.year, month: m };
+    });
+    const goToday = () => { setView({ year: todayDate.getFullYear(), month: todayDate.getMonth() }); setSelectedDay(todayDate.getDate()); };
+
+    const selectedEvents = eventsByDay[selectedDay] || [];
+
+    const navBtn = { width: 26, height: 26, borderRadius: '50%', border: '1px solid #e2e8f0', background: 'white', color: brand.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 };
+    const dayCellBase = { aspectRatio: '1 / 1', borderRadius: 8, fontSize: 11, fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', userSelect: 'none', transition: 'background 0.15s' };
+
+    return (
+        <div style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <h4 style={{ ...cardTitle, textAlign: 'left', flex: 1 }}>CALENDAR + SCHEDULE</h4>
+                <button type="button" onClick={goToday} style={{ fontSize: 10, fontWeight: 700, color: brand.primary, background: '#f0fdfa', border: '1px solid #99f6e4', padding: '3px 10px', borderRadius: 999, cursor: 'pointer' }}>Today</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <button type="button" aria-label="Previous month" onClick={goPrev} style={navBtn}><i className="fas fa-chevron-left" /></button>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: brand.text }}>{monthName}</div>
+                        <button type="button" aria-label="Next month" onClick={goNext} style={navBtn}><i className="fas fa-chevron-right" /></button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 9, color: brand.muted, textAlign: 'center', marginBottom: 4, fontWeight: 700, letterSpacing: '0.05em' }}>
+                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => <div key={i}>{l}</div>)}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                        {cells.map((d, i) => {
+                            if (d == null) return <div key={i} />;
+                            const isSelected = d === selectedDay;
+                            const today = isToday(d);
+                            const dayEvents = eventsByDay[d] || [];
+                            const bg = isSelected ? brand.primary : today ? '#f0fdfa' : 'transparent';
+                            const color = isSelected ? 'white' : today ? brand.primary : brand.text;
+                            return (
+                                <div
+                                    key={i}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => setSelectedDay(d)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDay(d); } }}
+                                    style={{ ...dayCellBase, background: bg, color, border: today && !isSelected ? '1px solid #99f6e4' : '1px solid transparent' }}
+                                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = today ? '#f0fdfa' : 'transparent'; }}
+                                >
+                                    <span>{d}</span>
+                                    {dayEvents.length > 0 && (
+                                        <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+                                            {dayEvents.slice(0, 3).map((e, j) => (
+                                                <span key={j} style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? 'white' : e.color, opacity: isSelected ? 0.9 : 1 }} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+                <div style={{ borderLeft: '1px solid #f1f5f9', paddingLeft: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: brand.text, marginBottom: 2 }}>
+                        {new Date(view.year, view.month, selectedDay || 1).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}
+                    </div>
+                    <div style={{ fontSize: 10, color: brand.muted, marginBottom: 10 }}>
+                        {selectedEvents.length} {selectedEvents.length === 1 ? 'event' : 'events'} scheduled
+                    </div>
+                    <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {selectedEvents.length === 0 ? (
+                            <div style={{ fontSize: 11, color: brand.muted, padding: '20px 0', textAlign: 'center', fontStyle: 'italic' }}>Nothing scheduled — pick another day to preview.</div>
+                        ) : (
+                            selectedEvents.map((e, i) => (
+                                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: 8, background: '#fafafa', borderRadius: 8, border: '1px solid #f1f5f9' }}>
+                                    <div style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, background: e.bg, color: e.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+                                        <i className={`fas ${e.icon}`} />
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: brand.text }}>
+                                            <span>{e.time}</span>
+                                            <span style={{ fontSize: 9, fontWeight: 600, color: e.color, background: e.bg, padding: '1px 6px', borderRadius: 4 }}>{e.label}</span>
+                                        </div>
+                                        <div style={{ fontSize: 11, color: brand.muted, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.subject}</div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const cardStyle = { background: 'white', padding: '25px', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', position: 'relative' };

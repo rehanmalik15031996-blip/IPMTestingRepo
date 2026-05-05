@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
 
   try {
     await connectDB();
-    const { userId, propertyId, folder } = req.query;
+    const { userId, propertyId, folder, slim } = req.query;
 
     if (req.method === 'GET') {
       // GET user files (/api/vault?userId=... or /api/vault?userId=...&propertyId=... or &folder=marketing)
@@ -18,7 +18,13 @@ module.exports = async (req, res) => {
       const filter = { userId: String(userId) };
       if (propertyId) filter.propertyId = String(propertyId);
       if (folder) filter.folder = String(folder);
-      const files = await File.find(filter).sort({ date: -1 }).lean();
+      // slim=1 strips the giant base64 `path` field — used by the Negotiation
+      // OTP picker which only needs filename / id / folder. Without this the
+      // dropdown waits on a multi-MB payload before rendering.
+      const isSlim = slim === '1' || slim === 'true';
+      const query = File.find(filter).sort({ date: -1 });
+      if (isSlim) query.select('-path');
+      const files = await query.lean();
       const LIMIT_BYTES = 1024 * 1024 * 1024; // 1GB per user
       const usedResult = await File.aggregate([
         { $match: { userId: String(userId) } },

@@ -95,6 +95,11 @@ const userSchema = new mongoose.Schema({
             branch: { type: String, default: 'Main HQ' },
             branchId: { type: String },
             tier: { type: String, default: 'Junior Agent' },
+            // Free-form job title (e.g. "Senior Practitioner", "Candidate Practitioner",
+            // "Principal Practitioner", "Agent"). Survives dashboard recomputes —
+            // unlike `tier`, which the dashboard endpoint may overwrite with the
+            // silver/gold/platinum badge level.
+            title: { type: String, default: null },
             sales: { type: Number, default: 0 },
             revenue: { type: Number, default: 0 },
             avgDays: { type: Number, default: 30 },
@@ -133,14 +138,16 @@ const userSchema = new mongoose.Schema({
             email: { type: String },
             mobile: { type: String },
             propertyOfInterest: { type: String },
+            propertyId: { type: String },
             dateAdded: { type: String },
             source: { type: String },
             linkedProperties: { type: mongoose.Schema.Types.Mixed },
             activities: { type: mongoose.Schema.Types.Mixed },
-            leadType: { type: String, enum: ['buyer', 'seller', 'investor'] },
+            leadType: { type: String, enum: ['buyer', 'seller', 'investor', 'prospect'] },
             buyerDetails: { type: mongoose.Schema.Types.Mixed },
             sellerDetails: { type: mongoose.Schema.Types.Mixed },
             investorDetails: { type: mongoose.Schema.Types.Mixed },
+            prospectDetails: { type: mongoose.Schema.Types.Mixed },
             viewingScheduledProperty: { type: String },
             viewingScheduledDate: { type: String },
             viewingScheduledTime: { type: String },
@@ -162,6 +169,70 @@ const userSchema = new mongoose.Schema({
             builtFrom: { type: String },
             updatedAt: { type: Date },
         },
+        /** Per-agency Sales pipeline configuration — separate from CRM. See client/src/constants/salesPipelineTemplates.js */
+        salesConfig: {
+            template: { type: String, default: null }, // 'industrial-sale-sa' | 'commercial-sale-sa' | 'commercial-lease' | 'custom' | null
+            pipelineStages: [{
+                id: { type: String, required: true },
+                title: { type: String, required: true },
+                order: { type: Number, default: 0 },
+                color: { type: String },
+                hint: { type: String },
+            }],
+            /** Stage-keyed map of automation rules: { stageId: [ rule, ... ] } */
+            automationRules: { type: mongoose.Schema.Types.Mixed, default: {} },
+            updatedAt: { type: Date },
+        },
+        /** Sales deals — auto-created when a Property's status flips to 'Under Negotiation', plus manual entries. */
+        salesDeals: [{
+            id: { type: String, required: true },
+            propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property' },
+            propertyTitle: { type: String },
+            propertyAddress: { type: String },
+            propertySuburb: { type: String },
+            propertyType: { type: String },
+            askingPrice: { type: Number },
+            offerPrice: { type: Number },
+            currency: { type: String, default: 'ZAR' },
+            sizeSqm: { type: Number },
+            assignedAgentId: { type: String, default: null },
+            assignedAgentName: { type: String, default: null },
+            buyerName: { type: String, default: '' },
+            buyerEmail: { type: String, default: '' },
+            buyerMobile: { type: String, default: '' },
+            stageId: { type: String, required: true },
+            createdAt: { type: Date, default: Date.now },
+            updatedAt: { type: Date, default: Date.now },
+            expectedCloseDate: { type: Date },
+            source: { type: String, default: 'manual' }, // 'manual' | 'auto-status-change'
+            notes: { type: String, default: '' },
+            // --- Negotiation snapshot copied from Property.negotiationDetails ---
+            otpFileId: { type: mongoose.Schema.Types.ObjectId, ref: 'File', default: null },
+            otpFileName: { type: String, default: null },
+            probabilityOfSale: { type: Number, default: null },
+            commissionRatePct: { type: Number, default: null },
+            commissionParties: [{
+                id: { type: String },
+                partyType: { type: String },
+                source: { type: String, default: 'internal' },
+                agentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+                name: { type: String },
+                firmName: { type: String, default: null },
+                sharePct: { type: Number, default: 0 },
+                notes: { type: String, default: null },
+            }],
+            activities: [{
+                actionId: { type: String },
+                datetime: { type: String },
+                activity: { type: String },
+                stageId: { type: String },
+                changedBy: {
+                    userId: { type: String },
+                    name: { type: String },
+                    role: { type: String },
+                },
+            }],
+        }],
         /** Staged HubSpot / PropData export files (paths on disk + metadata) — see agencyMigration routes */
         migrationImports: { type: mongoose.Schema.Types.Mixed },
         /** HubSpot / PropData API credentials — see agencyMigration integration routes (tokens stripped in API responses) */
@@ -195,7 +266,12 @@ const userSchema = new mongoose.Schema({
         outstandAccountId: { type: String, required: true },
         platform: { type: String, required: true },
         username: { type: String },
+        followers: { type: Number },
         connectedAt: { type: Date, default: Date.now },
+        // Marks accounts created via the "mock connect" shortcut so the UI
+        // can label them clearly and so sync-accounts won't try to refresh
+        // them against the real Outstand API.
+        isMock: { type: Boolean, default: false },
     }],
 
     // WHATSAPP BUSINESS
@@ -252,14 +328,16 @@ const userSchema = new mongoose.Schema({
             email: { type: String },
             mobile: { type: String },
             propertyOfInterest: { type: String },
+            propertyId: { type: String },
             dateAdded: { type: String },
             source: { type: String },
             linkedProperties: { type: mongoose.Schema.Types.Mixed },
             activities: { type: mongoose.Schema.Types.Mixed },
-            leadType: { type: String, enum: ['buyer', 'seller', 'investor'] },
+            leadType: { type: String, enum: ['buyer', 'seller', 'investor', 'prospect'] },
             buyerDetails: { type: mongoose.Schema.Types.Mixed },
             sellerDetails: { type: mongoose.Schema.Types.Mixed },
             investorDetails: { type: mongoose.Schema.Types.Mixed },
+            prospectDetails: { type: mongoose.Schema.Types.Mixed },
             viewingScheduledProperty: { type: String },
             viewingScheduledDate: { type: String },
             viewingScheduledTime: { type: String },

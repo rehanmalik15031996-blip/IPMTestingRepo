@@ -270,16 +270,40 @@ const Agents = () => {
                     </div>
                 </header>
 
-                {/* STATS ROW */}
-                <div style={{ display: 'flex', gap: '15px', marginBottom: '40px', flexWrap: 'wrap' }}>
-                    <StatCard label="TOTAL AGENTS" value={agents.length} />
-                    <StatCard label="ACTIVE (SIGNED ON)" value={agents.filter(a => a.status === 'active').length} />
-                    <StatCard label="PENDING INVITE" value={agents.filter(a => a.status !== 'active').length} />
-                    <StatCard label="AGENTS WITH DEALS IN PIPELINE" value={Math.floor(agents.length * 0.6)} />
-                    <StatCard label="AGENTS WITH CLOSED TRANSACTIONS" value={Math.floor(agents.length * 0.9)} />
-                    <StatCard label="LOW ACTIVITY AGENTS" value={Math.floor(agents.length * 0.1)} />
-                    <StatCard label="INACTIVE AGENTS" value={0} />
-                </div>
+                {/* STATS ROW — real counts derived from each agent's persisted activity. */}
+                {(() => {
+                    const totalAgents = agents.length;
+                    const activeSignedOn = agents.filter(a => a.status === 'active').length;
+                    const pendingInvite = agents.filter(a => a.status !== 'active').length;
+                    // "Deals in pipeline" = any agent with active listings, open CRM leads, OR pending deals.
+                    // For commercial agencies (Marder etc.) listings are usually the primary signal —
+                    // CRM leads come later once buyers express interest.
+                    const dealsInPipeline = agents.filter(a =>
+                        Number(a.activeLeads ?? a.leadCount ?? 0) > 0
+                        || Number(a.pendingDeals ?? 0) > 0
+                        || Number(a.totalListings ?? a.activeListings ?? 0) > 0
+                    ).length;
+                    const closedTx = agents.filter(a => Number(a.closedCount ?? a.sales ?? 0) > 0).length;
+                    // Low activity = active but no listings AND no leads AND no closed deals
+                    const lowActivity = agents.filter(a => a.status === 'active'
+                        && Number(a.totalListings ?? a.activeListings ?? 0) === 0
+                        && Number(a.activeLeads ?? a.leadCount ?? 0) === 0
+                        && Number(a.closedCount ?? a.sales ?? 0) === 0).length;
+                    const inactiveAgents = agents.filter(a => a.status === 'inactive'
+                        || a.status === 'disabled'
+                        || a.status === 'removed').length;
+                    return (
+                        <div style={{ display: 'flex', gap: '15px', marginBottom: '40px', flexWrap: 'wrap' }}>
+                            <StatCard label="TOTAL AGENTS" value={totalAgents} />
+                            <StatCard label="ACTIVE (SIGNED ON)" value={activeSignedOn} />
+                            <StatCard label="PENDING INVITE" value={pendingInvite} />
+                            <StatCard label="AGENTS WITH DEALS IN PIPELINE" value={dealsInPipeline} />
+                            <StatCard label="AGENTS WITH CLOSED TRANSACTIONS" value={closedTx} />
+                            <StatCard label="LOW ACTIVITY AGENTS" value={lowActivity} />
+                            <StatCard label="INACTIVE AGENTS" value={inactiveAgents} />
+                        </div>
+                    );
+                })()}
 
                 {/* AGENTS GRID - ranked by total sales (highest first), scrollable when list grows */}
                 <div style={{ maxHeight: '70vh', overflowY: 'auto', marginBottom: '20px' }}>
@@ -307,6 +331,15 @@ const Agents = () => {
                                     />
                                 )}
                                 <h3 style={{ margin: '0', fontSize: '16px', color: '#1f3a3d' }}>{agent.name}</h3>
+                                {(() => {
+                                    // Show the agent's job title if it's a real label (not the silver/gold/platinum badge).
+                                    const candidate = agent.title || (agent.tier && !['silver', 'gold', 'platinum'].includes(String(agent.tier).toLowerCase()) ? agent.tier : null);
+                                    return candidate ? (
+                                        <div style={{ fontSize: '11px', color: '#11575C', fontWeight: 600, marginTop: '4px' }}>
+                                            {candidate}
+                                        </div>
+                                    ) : null;
+                                })()}
                                 <div style={{ fontSize: '10px', color: '#888', fontStyle: 'italic', marginTop: '4px' }}>
                                     {agent.status === 'active' ? `Active since ${new Date().getFullYear()}` : 'Invite sent'}
                                 </div>

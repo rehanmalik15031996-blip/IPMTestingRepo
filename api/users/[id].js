@@ -266,15 +266,32 @@ module.exports = async (req, res) => {
 
       // Lightweight listings-only response for Listing Management page (avoids full dashboard payload)
       if (type === 'listings') {
+        // ?slim=1 — drop the heavy media + non-area_housing metadata blobs.
+        // Used by the Prospecting tab where we only need coords + area_housing comps.
+        const slim = String(req.query?.slim || '').trim() === '1';
+        const trimProp = (p) => {
+          if (!p) return p;
+          const out = { ...p };
+          delete out.media;
+          delete out.imageGallery;
+          if (out.listingMetadata && typeof out.listingMetadata === 'object') {
+            out.listingMetadata = {
+              area_housing: out.listingMetadata.area_housing,
+              property: out.listingMetadata.property,
+            };
+          }
+          return out;
+        };
         const listingUser = await User.findById(id).lean();
         if (!listingUser) return res.status(404).json({ message: 'User not found' });
         const listingRole = (listingUser.role || '').toLowerCase();
         if (listingRole === 'agency') {
           const propFilter = await agencyListingPropertyFilter(id);
-          const [agentProps, agencyMembers] = await Promise.all([
+          const [agentPropsRaw, agencyMembers] = await Promise.all([
             Property.find(propFilter).sort({ createdAt: -1 }).limit(200).lean(),
             User.find({ agencyId: id }).select('_id name email').lean()
           ]);
+          const agentProps = slim ? agentPropsRaw.map(trimProp) : agentPropsRaw;
           const nameMap = {};
           (agencyMembers || []).forEach((u) => { nameMap[String(u._id)] = u.name || u.email || 'Agent'; });
           nameMap[String(id)] = listingUser.name || 'Agency';
@@ -290,17 +307,50 @@ module.exports = async (req, res) => {
           });
         }
         if (listingRole === 'agency_agent' || listingRole === 'independent_agent' || listingRole === 'agent') {
-          const agentProps = await Property.find({ agentId: id }).sort({ createdAt: -1 }).limit(200).lean();
+          const agentPropsRaw = await Property.find({ agentId: id }).sort({ createdAt: -1 }).limit(200).lean();
+          const agentProps = slim ? agentPropsRaw.map(trimProp) : agentPropsRaw;
           let crmLeads = listingUser.agentStats?.crmLeads || [];
+          // Build a topAgents-style roster so the Under Negotiation modal's
+          // "listing agent" picker has options. Agency agents see their full
+          // agency roster (so co-listing / commission splits across colleagues
+          // are possible); sole agents just see themselves.
+          const selfEntry = {
+            _id: String(listingUser._id),
+            id: String(listingUser._id),
+            name: listingUser.name || listingUser.email || 'Me',
+          };
+          let topAgents = [selfEntry];
           if (listingRole === 'agency_agent' && listingUser.agencyId) {
-            const agency = await User.findById(listingUser.agencyId).select('agencyStats.crmLeads').lean();
+            const [agency, agencyMembers] = await Promise.all([
+              User.findById(listingUser.agencyId).select('agencyStats.crmLeads agencyStats.topAgents name').lean(),
+              User.find({ agencyId: listingUser.agencyId }).select('_id name email').lean(),
+            ]);
             const agencyLeads = agency?.agencyStats?.crmLeads || [];
             const currentUserIdStr = String(id);
             crmLeads = agencyLeads.filter((l) => String(l?.assignedAgentId || '').trim() === currentUserIdStr);
+            const memberMap = {};
+            (agencyMembers || []).forEach((u) => {
+              memberMap[String(u._id)] = u.name || u.email || 'Agent';
+            });
+            const seenIds = new Set([currentUserIdStr]);
+            const topRoster = (agency?.agencyStats?.topAgents || [])
+              .map((a) => {
+                const aid = a._id ? String(a._id) : (a.id ? String(a.id) : null);
+                if (!aid) return null;
+                return { _id: aid, id: aid, name: memberMap[aid] || a.name || a.email || 'Agent' };
+              })
+              .filter((a) => a && !seenIds.has(a.id) && (seenIds.add(a.id) || true));
+            topAgents = [selfEntry, ...topRoster];
+            // Always expose the agency principal as a selectable "Listing
+            // Agent" too — useful when a deal is logged at the agency level.
+            const agencyIdStr = String(listingUser.agencyId);
+            if (!seenIds.has(agencyIdStr)) {
+              topAgents.push({ _id: agencyIdStr, id: agencyIdStr, name: `${agency?.name || 'Agency'} (Agency)` });
+            }
           }
           return res.status(200).json({
             agentProperties: agentProps,
-            stats: { crmLeads },
+            stats: { topAgents, crmLeads },
             agentStats: { crmLeads }
           });
         }
@@ -569,11 +619,24 @@ module.exports = async (req, res) => {
               const conversionRate = totalListings > 0 ? Math.round((salesThisMonth / totalListings) * 100) : 0;
               const monthlyTarget = raw.monthlyTarget != null ? raw.monthlyTarget : 0;
               const percentOfTarget = monthlyTarget > 0 ? Math.round((thisMonth / monthlyTarget) * 100) : null;
-              const { tier, score } = computeAgentTierAndScore({
+              const { tier: badgeTier, score } = computeAgentTierAndScore({
                 agentId: aid,
                 email: raw.email || live?.email,
-                name: raw.name || live?.name
+                name: raw.name || live?.name,
+                activity: {
+                  closedCount,
+                  totalSales,
+                  totalListings,
+                  leadCount,
+                  avgDaysToClose: avgDays,
+                },
               });
+              // `title` is the human-readable job title (e.g. "Senior Practitioner").
+              // `tier` historically held that label too — so for backward compat, fall
+              // back to whatever was there. The silver/gold/platinum badge value lives
+              // on a separate `badgeTier` field so the title isn't stomped on every
+              // dashboard fetch.
+              const title = raw.title || (raw.tier && !['silver', 'gold', 'platinum'].includes(String(raw.tier).toLowerCase()) ? raw.tier : null);
               return {
                 ...raw,
                 _id: aid || raw._id,
@@ -587,18 +650,26 @@ module.exports = async (req, res) => {
                 revenueThisMonth: thisMonth,
                 sales: salesThisMonth,
                 closedCount,
+                // Pipeline activity — surfaced so the Agents tab KPI tiles can derive
+                // "deals in pipeline" / "low activity" without a second roundtrip.
+                totalListings,
+                activeListings: totalListings,
+                leadCount,
+                activeLeads: leadCount,
                 avgDays,
                 conversionRate: `${conversionRate}%`,
                 monthlyTarget,
                 percentOfTarget,
-                tier,
+                title,
+                tier: title || raw.tier,   // keep `tier` populated for old UI references
+                badgeTier,
                 score
               };
             });
             await Promise.all(topAgents.map((a) => {
               const aid = a._id || a.id;
               if (!aid || !mongoose.Types.ObjectId.isValid(aid)) return Promise.resolve();
-              return User.findByIdAndUpdate(aid, { $set: { agentTier: a.tier, agentScore: a.score } }).then(() => {});
+              return User.findByIdAndUpdate(aid, { $set: { agentTier: a.badgeTier, agentScore: a.score } }).then(() => {});
             }));
             const agencyCrmLeadsRaw = user.agencyStats?.crmLeads || [];
             const agencyCrmLeads = await enrichLeadsWithScores(agencyCrmLeadsRaw, id);
@@ -679,10 +750,19 @@ module.exports = async (req, res) => {
               avgDaysToSell = daysArr.length ? Math.round(daysArr.reduce((s, d) => s + d, 0) / daysArr.length) : 60;
             }
             const leadCount = (crmLeads || []).length;
+            const closedCountForAgent = soldList.length;
+            const totalSalesForAgent = soldList.reduce((s, p) => s + (Number(p.salePrice) || 0), 0);
             const { tier: agentTier, score: agentScore } = computeAgentTierAndScore({
               agentId: id,
               email: user.email,
-              name: user.name
+              name: user.name,
+              activity: {
+                closedCount: closedCountForAgent,
+                totalSales: totalSalesForAgent,
+                totalListings: agentPropsCount,
+                leadCount,
+                avgDaysToClose: avgDaysToSell,
+              },
             });
             await User.findByIdAndUpdate(id, { $set: { agentTier, agentScore } });
             const crmLeadsEnriched = await enrichLeadsWithScores(crmLeads || [], user.agencyId || id);

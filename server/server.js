@@ -13,6 +13,12 @@ const vercelContactHandler = require(path.join(__dirname, '../api/contact/index.
 /** CRM lead mutations — Vercel has these; Express must mirror them when the client proxies /api here (local dev). */
 const updateLeadHandler = require(path.join(__dirname, '../api/update-lead.js'));
 const deleteLeadHandler = require(path.join(__dirname, '../api/delete-lead.js'));
+/** Lead-vs-listing match scores (Vercel only by default — wired here so the
+ * Top Matches modal and CRM lead matches load when developing locally). */
+const matchScoresHandler = require(path.join(__dirname, '../api/match/scores.js'));
+const runLeadMatchesHandler = require(path.join(__dirname, '../api/match/run-lead-matches.js'));
+const runListingMatchesHandler = require(path.join(__dirname, '../api/match/run-listing-matches.js'));
+const runUserMatchesHandler = require(path.join(__dirname, '../api/match/run-user-matches.js'));
 
 // Routes
 const multer = require('multer');
@@ -28,6 +34,7 @@ const News = require('./models/News');
 const MarketTrend = require('./models/MarketTrend');
 const developmentsRoute = require('./routes/developments');
 const agencyMigrationRoute = require('./routes/agencyMigration');
+const agencySalesRoute = require('./routes/agencySales');
 const jwt = require('jsonwebtoken');
 const { resolveDevBypassAgencyId, isDevBypassEnabled } = require('./utils/devBypass');
 const app = express();
@@ -102,10 +109,23 @@ app.post('/api/delete-lead', (req, res, next) => {
         else next(err);
     });
 });
+// Match scoring — delegate to the same handlers Vercel runs in production.
+const wrapMatchHandler = (h, label) => (req, res, next) => {
+    Promise.resolve(h(req, res)).catch((err) => {
+        console.error(`${label} error:`, err);
+        if (!res.headersSent) res.status(500).json({ message: err.message || 'Internal error' });
+        else next(err);
+    });
+};
+app.get('/api/match/scores', wrapMatchHandler(matchScoresHandler, 'match/scores'));
+app.post('/api/match/run-lead-matches', wrapMatchHandler(runLeadMatchesHandler, 'match/run-lead-matches'));
+app.post('/api/match/run-listing-matches', wrapMatchHandler(runListingMatchesHandler, 'match/run-listing-matches'));
+app.post('/api/match/run-user-matches', wrapMatchHandler(runUserMatchesHandler, 'match/run-user-matches'));
 app.use('/api/properties', propertyRoute);
 app.use('/api/inquiry', inquiryRoute);
 app.use('/api/news', newsRoute);
 app.use('/api/agency/migration', agencyMigrationRoute);
+app.use('/api/agency', agencySalesRoute);
 
 /** Outstand (social) — mirror Vercel serverless handlers for local Express dev */
 const outstandAuthUrl = require('../api/outstand/auth-url');
@@ -317,14 +337,21 @@ const PORT = process.env.PORT || 5001;
 // Vault — query-style GET & JSON POST (same contract as api/vault/index.js on Vercel; local proxy hits Express)
 app.get('/api/vault', async (req, res) => {
     try {
-        const { userId, propertyId, folder } = req.query;
+        const { userId, propertyId, folder, slim } = req.query;
         if (!userId) {
             return res.status(400).json({ message: 'userId query parameter is required' });
         }
         const filter = { userId: String(userId) };
         if (propertyId) filter.propertyId = String(propertyId);
         if (folder) filter.folder = String(folder);
-        const files = await File.find(filter).sort({ date: -1 }).lean();
+        // slim=1 strips the giant base64 `path` field — used by the Negotiation
+        // OTP picker which only needs filename / id / folder. Without this the
+        // dropdown waits on a multi-MB payload before rendering.
+        const isSlim = slim === '1' || slim === 'true';
+        const projection = isSlim ? '-path' : null;
+        const query = File.find(filter).sort({ date: -1 });
+        if (projection) query.select(projection);
+        const files = await query.lean();
         const LIMIT_BYTES = 1024 * 1024 * 1024;
         const usedResult = await File.aggregate([
             { $match: { userId: String(userId) } },

@@ -185,7 +185,7 @@ const s = {
     },
 };
 
-const CommsPanel = ({ open, onClose, currentUserId }) => {
+const CommsPanel = ({ open, onClose, currentUserId, initialCompose, onInitialComposeConsumed }) => {
     const isMobile = useIsMobile();
     const [activeTab, setActiveTab] = useState('all');
     const [conversations, setConversations] = useState([]);
@@ -260,6 +260,27 @@ const CommsPanel = ({ open, onClose, currentUserId }) => {
         pollRef.current = setInterval(fetchConversations, POLL_INTERVAL);
         return () => clearInterval(pollRef.current);
     }, [open, fetchConversations, fetchSetupStatus]);
+
+    // External callers (e.g. the CMA report's "Send by email" button) can
+    // request that we open in compose mode with prefilled fields. Wait until
+    // setup has loaded so we know whether to route the user to the email
+    // setup screen or straight into compose.
+    useEffect(() => {
+        if (!open || !initialCompose || !setupLoaded) return;
+        if (emailAccounts.length === 0) {
+            // No email accounts yet — drop the user on the setup screen so
+            // they can connect Gmail/Outlook before sending.
+            setView('setup');
+        } else {
+            setNewMsgMode('email');
+            setEmailTo(initialCompose.to || '');
+            setEmailCc(initialCompose.cc || '');
+            setEmailSubject(initialCompose.subject || '');
+            setDraft(initialCompose.body || '');
+            setView('new');
+        }
+        if (onInitialComposeConsumed) onInitialComposeConsumed();
+    }, [open, initialCompose, setupLoaded, emailAccounts.length, onInitialComposeConsumed]);
 
     useEffect(() => {
         if (view !== 'thread' || !selectedConvo) return;

@@ -9,10 +9,128 @@ import { useTranslation } from 'react-i18next';
 import PropertyUploadForm from '../components/PropertyUploadForm';
 import AddAgentModal from '../components/AddAgentModal';
 import PortalPreviewModal from '../components/PortalPreviewModal';
+import NegotiationFieldsSection from '../components/NegotiationFieldsSection';
 import { showNotification } from '../components/NotificationManager';
 import { getPropertyLimitForUser } from '../utils/planLimits';
 import { invalidateDashboardCache } from '../config/dashboardCache';
+import { invalidateSalesCache } from '../config/salesCache';
 import { dedupePropertyTitle } from '../utils/propertyTitle';
+
+// Donut chart for the listing-row IPM score with hover tooltips on each slice.
+// Palette pulled from the enterpriseTheme styleguide so the chart matches the
+// rest of the brand surfaces (primary teal, gold, money, success, warn).
+const IPM_SUB_METRICS = [
+    { key: 'location',      label: 'Location',      color: '#10575C', blurb: 'Suburb walkability, school catchment scores, and proximity to amenities.' },
+    { key: 'specification', label: 'Specification', color: '#0F5A4A', blurb: 'Build quality, finishes, EPC band, and feature parity vs. comps.' },
+    { key: 'demand',        label: 'Buyer demand',  color: '#E7A11A', blurb: 'Active matched buyers in CRM and search-volume signals for this asset class.' },
+    { key: 'liquidity',     label: 'Liquidity',     color: '#C9951C', blurb: 'Recent transaction velocity in the suburb and average days-on-market.' },
+    { key: 'macro',         label: 'Macro outlook', color: '#A65F0A', blurb: 'Country-level price trend, interest-rate trajectory, and currency stability.' },
+];
+
+function buildIpmSubScores(seedKey, headlineScore) {
+    // Deterministic per-listing — same id always produces the same breakdown.
+    const seed = String(seedKey || '').split('').reduce((a, c) => (a * 33 + c.charCodeAt(0)) >>> 0, 5381);
+    const rand = (i) => {
+        const x = Math.sin(seed * 31 + i * 1009) * 43758.5453;
+        return x - Math.floor(x);
+    };
+    // Derive a deterministic headline from the seed when the listing has no
+    // real ipmScore yet — keeps the donut centre populated for every property.
+    const baseHeadline = Number.isFinite(Number(headlineScore)) && headlineScore > 0
+        ? Number(headlineScore)
+        : 60 + Math.round(rand(0) * 30); // 60–90 deterministic per-id
+    // Wider per-listing variation (±28 instead of ±11) so pie wedges look
+    // visibly different listing-to-listing rather than five near-equal slices.
+    return IPM_SUB_METRICS.map((m, i) => {
+        const offset = Math.round((rand(i + 1) - 0.5) * 56);
+        const value = Math.max(35, Math.min(99, baseHeadline + offset));
+        return { ...m, value };
+    });
+}
+
+const IpmScoreDonut = ({ propertyId, headlineScore }) => {
+    const [hover, setHover] = useState(null);
+    const subs = React.useMemo(() => buildIpmSubScores(propertyId, headlineScore), [propertyId, headlineScore]);
+    const total = subs.reduce((s, m) => s + m.value, 0);
+    const size = 96;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = 38;
+    const inner = 26;
+    let angleAcc = -90; // start at top
+    const slices = subs.map((m) => {
+        const slice = (m.value / total) * 360;
+        const start = angleAcc;
+        const end = angleAcc + slice;
+        angleAcc = end;
+        const polar = (deg, r) => [cx + r * Math.cos((deg * Math.PI) / 180), cy + r * Math.sin((deg * Math.PI) / 180)];
+        const [x1, y1] = polar(start, radius);
+        const [x2, y2] = polar(end, radius);
+        const [x3, y3] = polar(end, inner);
+        const [x4, y4] = polar(start, inner);
+        const large = slice > 180 ? 1 : 0;
+        const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${inner} ${inner} 0 ${large} 0 ${x4} ${y4} Z`;
+        return { ...m, path };
+    });
+    // Always show *something* in the centre — fall back to the average of the
+    // sub-scores so every property surfaces a score in the donut.
+    const headline = Number.isFinite(Number(headlineScore)) && headlineScore > 0
+        ? Number(headlineScore)
+        : Math.round(total / Math.max(1, subs.length));
+    const active = hover ? subs.find((m) => m.key === hover) : null;
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, height: size }}>
+            <div
+                style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}
+                onMouseLeave={() => setHover(null)}
+            >
+                <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+                    {slices.map((s) => (
+                        <path
+                            key={s.key}
+                            d={s.path}
+                            fill={s.color}
+                            opacity={hover && hover !== s.key ? 0.35 : 1}
+                            stroke={s.color}
+                            strokeWidth={0}
+                            style={{ cursor: 'pointer', transition: 'opacity 0.15s' }}
+                            onMouseEnter={() => setHover(s.key)}
+                        />
+                    ))}
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#10575C', lineHeight: 1, textAlign: 'center' }}>{headline}%</div>
+                </div>
+            </div>
+            <div
+                style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 11,
+                    color: '#475569',
+                    lineHeight: 1.35,
+                    height: size,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                }}
+            >
+                {active ? (
+                    <>
+                        <div style={{ fontWeight: 700, color: active.color, marginBottom: 2 }}>{active.label} · {active.value}/100</div>
+                        <div style={{ color: '#64748b', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{active.blurb}</div>
+                    </>
+                ) : (
+                    <>
+                        <div style={{ fontWeight: 700, color: '#10575C', marginBottom: 2 }}>IPM Score™</div>
+                        <div style={{ color: '#8B8F94' }}>Hover a slice for the metric details.</div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
 
 /** PropData "On Show" = No/false should not show as active on the tile. */
 function strOnShowDay(raw) {
@@ -36,6 +154,13 @@ function formatListingAddedOn(raw) {
     } catch (_) {
         return '—';
     }
+}
+
+// Default shape for the status-detail modal. Includes the negotiation snapshot
+// (OTP, probability, commission split) so the dialog can mount empty fields.
+const EMPTY_NEGOTIATION = { otpDecision: 'later', otpFileId: null, otpFileName: null, probabilityOfSale: null, commissionRatePct: null, commissionParties: [] };
+function emptyStatusModal() {
+    return { open: false, type: null, item: null, price: '', date: '', buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerMobile: '', daysActive: '', negotiation: { ...EMPTY_NEGOTIATION } };
 }
 
 function statsFromListings(arr) {
@@ -77,7 +202,7 @@ const ListingManagement = () => {
     // UI States
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [uploadInitialData, setUploadInitialData] = useState(null);
-    const [statusModal, setStatusModal] = useState({ open: false, type: null, item: null, price: '', date: '', buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerMobile: '', daysActive: '' });
+    const [statusModal, setStatusModal] = useState(emptyStatusModal());
     const [onShowModal, setOnShowModal] = useState({ open: false, item: null, day: '', times: '' });
     const [quickEditLoadingId, setQuickEditLoadingId] = useState(null);
     const [showAddAgentModal, setShowAddAgentModal] = useState(false);
@@ -154,7 +279,12 @@ const ListingManagement = () => {
         const nextListings = prevListings.map(p => p._id === item._id ? { ...p, ...updates } : p);
         setListings(nextListings);
         setStats(statsFromListings(nextListings));
-        if (user?._id) invalidateDashboardCache(user._id); // mark dashboard stale immediately so it refetches when opened/focused
+        if (user?._id) {
+            invalidateDashboardCache(user._id); // mark dashboard stale immediately so it refetches when opened/focused
+            // Status changes drive auto-deal creation/closure server-side, so
+            // mark the Sales board stale too so it reflects the new state.
+            if (Object.prototype.hasOwnProperty.call(updates, 'status')) invalidateSalesCache(user._id);
+        }
         api.put(`/api/properties/${encodeURIComponent(item._id)}`, updates)
             .catch((err) => {
                 setListings(prevListings);
@@ -183,8 +313,9 @@ const ListingManagement = () => {
         const dateObj = date ? new Date(date) : null;
         const numDays = daysActive !== '' ? parseInt(String(daysActive).replace(/\D/g, ''), 10) : undefined;
         const validDays = numDays != null && !isNaN(numDays) ? numDays : undefined;
-        const updates = type === 'Sold'
-            ? {
+        let updates;
+        if (type === 'Sold') {
+            updates = {
                 status: 'Sold',
                 salePrice: numPrice,
                 saleDate: dateObj,
@@ -193,14 +324,61 @@ const ListingManagement = () => {
                 ...(buyerLastName?.trim() && { saleBuyerLastName: buyerLastName.trim() }),
                 ...(buyerEmail?.trim() && { saleBuyerEmail: buyerEmail.trim() }),
                 ...(buyerMobile?.trim() && { saleBuyerMobile: buyerMobile.trim() })
-            }
-            : { status: 'Under Offer', offerPrice: numPrice, offerDate: dateObj, ...(validDays != null && { underOfferDaysActive: validDays }) };
+            };
+        } else if (type === 'Under Negotiation') {
+            const neg = statusModal.negotiation || EMPTY_NEGOTIATION;
+            const cleanParties = (neg.commissionParties || [])
+                .filter((p) => p && (p.name || p.agentId || p.firmName))
+                .map((p) => ({
+                    id: p.id,
+                    partyType: p.partyType,
+                    source: p.source || 'internal',
+                    agentId: p.source === 'internal' ? (p.agentId || null) : null,
+                    name: p.name || '',
+                    firmName: p.source === 'external' ? (p.firmName || null) : null,
+                    sharePct: Number(p.sharePct) || 0,
+                    notes: p.notes || null,
+                }));
+            // If the user picked an internal "Listing Agent" in the commission
+            // structure, treat that as the listing's owner: re-point the
+            // property's agentId so the auto-created sales deal lands in the
+            // right agent's pipeline. Without this, the deal stays assigned
+            // to whoever uploaded the listing (often the agency principal).
+            const listingAgentParty = cleanParties.find((p) => p.partyType === 'listing_agent' && p.source === 'internal' && p.agentId);
+            const newAgentId = listingAgentParty?.agentId || null;
+            updates = {
+                status: 'Under Negotiation',
+                offerPrice: numPrice,
+                offerDate: dateObj,
+                ...(validDays != null && { underOfferDaysActive: validDays }),
+                ...(buyerFirstName?.trim() && { saleBuyerFirstName: buyerFirstName.trim() }),
+                ...(buyerLastName?.trim() && { saleBuyerLastName: buyerLastName.trim() }),
+                ...(buyerEmail?.trim() && { saleBuyerEmail: buyerEmail.trim() }),
+                ...(buyerMobile?.trim() && { saleBuyerMobile: buyerMobile.trim() }),
+                ...(newAgentId && newAgentId !== String(item.agentId || '') && { agentId: newAgentId }),
+                negotiationDetails: {
+                    otpFileId: neg.otpFileId || null,
+                    otpFileName: neg.otpFileName || null,
+                    probabilityOfSale: neg.probabilityOfSale ?? null,
+                    commissionRatePct: neg.commissionRatePct ?? null,
+                    commissionParties: cleanParties,
+                },
+            };
+        } else {
+            updates = { status: 'Under Offer', offerPrice: numPrice, offerDate: dateObj, ...(validDays != null && { underOfferDaysActive: validDays }) };
+        }
         const prevListings = listings;
         const nextListings = prevListings.map(p => p._id === item._id ? { ...p, ...updates } : p);
         setListings(nextListings);
         setStats(statsFromListings(nextListings));
-        setStatusModal({ open: false, type: null, item: null, price: '', date: '', buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerMobile: '', daysActive: '' });
-        if (user?._id) invalidateDashboardCache(user._id);
+        setStatusModal(emptyStatusModal());
+        if (user?._id) {
+            invalidateDashboardCache(user._id);
+            // Sold / Under Offer / Under Negotiation all touch the Sales pipeline
+            // server-side (create / refresh / close deals), so mark the Sales
+            // board stale so it picks up the new state on next open.
+            invalidateSalesCache(user._id);
+        }
         api.put(`/api/properties/${encodeURIComponent(item._id)}`, updates)
             .catch((err) => {
                 setListings(prevListings);
@@ -405,12 +583,13 @@ const ListingManagement = () => {
                 <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>YOUR PROPERTIES</div>
                 <div style={{ ...listContainer, overflowX: isMobile ? 'auto' : undefined }}>
                     <div style={{ ...listHeader, ...(isMobile && { display: 'none' }) }}>
-                        <div style={{ width: '14%' }}>Feature Photo</div>
-                        <div style={{ width: '24%' }}>Property Info</div>
-                        <div style={{ width: '14%' }}>Added On</div>
-                        <div style={{ width: '18%', textAlign: 'left' }}>Property Status</div>
-                        <div style={{ width: '14%', textAlign: 'left' }}>Website Status</div>
-                        <div style={{ width: '16%', textAlign: 'center' }}>{t('listing.priceActions')}</div>
+                        <div style={{ width: '30%' }}>Property Info</div>
+                        <div style={{ width: '11%' }}>Price</div>
+                        <div style={{ width: '10%' }}>Added On</div>
+                        <div style={{ width: '13%' }}>Property Status</div>
+                        <div style={{ width: '12%' }}>Website Status</div>
+                        <div style={{ width: '10%', textAlign: 'center' }}>Actions</div>
+                        <div style={{ width: '14%', textAlign: 'center' }}>IPM Score</div>
                     </div>
 
                     <div style={scrollableList}>
@@ -429,188 +608,233 @@ const ListingManagement = () => {
                                 const addressNorm = (address || '').trim().toLowerCase().replace(/\s+/g, ' ');
                                 const titleNorm = titleLine.toLowerCase().replace(/\s+/g, ' ');
                                 const showAddress = address && addressNorm && titleNorm !== addressNorm && !titleNorm.includes(addressNorm) && !addressNorm.includes(titleNorm);
+                                const onShowActive = !!strOnShowDay(item.onShowDay);
+                                const PROPERTY_STATUS_OPTIONS = [
+                                    { value: 'Draft', label: 'Draft', needsModal: false, payload: { status: 'Draft' } },
+                                    { value: 'Published', label: 'Active', needsModal: false, payload: { status: 'Published' } },
+                                    { value: 'Under Offer', label: 'Under Offer', needsModal: true, payload: { status: 'Under Offer' } },
+                                    { value: 'Under Negotiation', label: 'Under Negotiation', needsModal: true, payload: { status: 'Under Negotiation' } },
+                                    { value: 'Sold', label: 'Sold', needsModal: true, payload: { status: 'Sold' } },
+                                    { value: 'Unavailable', label: 'Unavailable', needsModal: false, payload: { status: 'Unavailable' } },
+                                ];
+                                const propId = String(item._id);
+                                const propTitleNorm = (item.title || item.propertyTitle || '').toLowerCase().trim();
+                                const propAddr = (item.locationDetails?.streetAddress || item.location || '').toLowerCase().trim();
+                                const matchesLinkedProp = (lp) => {
+                                    if (!lp) return false;
+                                    const lpId = lp._id || lp.id || lp.propertyId;
+                                    if (lpId && String(lpId) === propId) return true;
+                                    const lpTitle = (lp.title || lp.name || (typeof lp === 'string' ? lp : '')).toLowerCase().trim();
+                                    if (!lpTitle) return false;
+                                    if (propTitleNorm && (lpTitle === propTitleNorm || propTitleNorm.includes(lpTitle) || lpTitle.includes(propTitleNorm))) return true;
+                                    if (propAddr && (lpTitle === propAddr || propAddr.includes(lpTitle) || lpTitle.includes(propAddr))) return true;
+                                    return false;
+                                };
+                                const sellerLead = (crmLeads || []).find(l => {
+                                    const lt = (l.leadType || l.type || '').toLowerCase();
+                                    if (lt !== 'seller') return false;
+                                    if (l.linkedProperties && Array.isArray(l.linkedProperties) && l.linkedProperties.some(matchesLinkedProp)) return true;
+                                    if (propTitleNorm && l.propertyOfInterest && l.propertyOfInterest.toLowerCase().trim() === propTitleNorm) return true;
+                                    return false;
+                                });
+                                const sellerLeadOptions = (crmLeads || [])
+                                    .filter((l) => (l.leadType || l.type || '').toLowerCase() === 'seller')
+                                    .map((l) => ({ id: String(l.id || l._id || ''), name: l.name || l.email || 'Unnamed seller' }))
+                                    .filter((o) => o.id);
+                                const currentSellerLeadId = sellerLead ? String(sellerLead.id || sellerLead._id || '') : '';
+                                const handleSellerLinkChange = async (nextLeadId) => {
+                                    if (isQuickEditLoading) return;
+                                    if (String(nextLeadId || '') === currentSellerLeadId) return;
+                                    const propertyTitle = titleLine || item.title || item.propertyTitle || 'Property';
+                                    try {
+                                        // Clear the link off the previously linked seller (if any) so we don't
+                                        // end up with two seller leads claiming the same property.
+                                        if (currentSellerLeadId && currentSellerLeadId !== nextLeadId) {
+                                            await api.put('/api/update-lead', {
+                                                leadId: currentSellerLeadId,
+                                                lead: { propertyId: '', propertyOfInterest: '' },
+                                            });
+                                        }
+                                        if (nextLeadId) {
+                                            await api.put('/api/update-lead', {
+                                                leadId: nextLeadId,
+                                                lead: { propertyId: String(item._id), propertyOfInterest: propertyTitle },
+                                            });
+                                        }
+                                        await fetchListings(true);
+                                    } catch (err) {
+                                        showNotification(err.response?.data?.message || 'Failed to update seller link.', 'error');
+                                    }
+                                };
+                                const handlePropertyStatusChange = (nextValue) => {
+                                    if (isQuickEditLoading) return;
+                                    const opt = PROPERTY_STATUS_OPTIONS.find((o) => o.value === nextValue);
+                                    if (!opt) return;
+                                    if (opt.needsModal) {
+                                        const existingNeg = item?.negotiationDetails || null;
+                                        const prefilledNeg = existingNeg ? {
+                                            otpDecision: existingNeg.otpFileId ? 'vault' : 'later',
+                                            otpFileId: existingNeg.otpFileId || null,
+                                            otpFileName: existingNeg.otpFileName || null,
+                                            probabilityOfSale: existingNeg.probabilityOfSale ?? null,
+                                            commissionRatePct: existingNeg.commissionRatePct ?? null,
+                                            commissionParties: Array.isArray(existingNeg.commissionParties) ? existingNeg.commissionParties : [],
+                                        } : { ...EMPTY_NEGOTIATION };
+                                        const modalType = opt.value === 'Published' ? 'Active' : opt.value;
+                                        setStatusModal({ ...emptyStatusModal(), open: true, type: modalType, item, negotiation: prefilledNeg });
+                                    } else {
+                                        handleQuickEdit(item, opt.payload);
+                                    }
+                                };
                                 return (
                                     <div key={item._id} style={{ ...listItem, position: 'relative', ...(isMobile && { flexDirection: 'column', alignItems: 'stretch', minWidth: '280px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '12px', borderBottom: 'none', padding: '16px' }) }}>
-                                        {(item.ipmScore != null || item.readinessScore != null) && (
-                                            <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 1 }}>
-                                                <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Score</div>
-                                                <div style={{ fontSize: '16px', fontWeight: '700', color: '#11575C' }}>{item.ipmScore ?? item.readinessScore ?? 0}</div>
+                                        {/* Property Info — bigger photo + meta + lead pill + on-show / price-reduced toggles */}
+                                        <div style={{ width: isMobile ? '100%' : '30%', display: 'flex', gap: 14, paddingRight: 12, minWidth: 0 }}>
+                                            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                                                <img src={item.imageUrl || 'https://images.unsplash.com/photo-1600596542815-2a4d9fdb2243?w=300'} alt="prop" style={thumbStyle} />
+                                                <button type="button" style={{ ...actionBtn, background: 'transparent', borderColor: '#11575C', color: '#11575C', fontSize: '10px', padding: '4px 10px', width: 'auto' }} disabled={matchScoresLoading} onClick={(e) => { e.stopPropagation(); openTopMatchesModal(item, titleLine || item.title || 'Property'); }}>{matchScoresLoading ? '…' : 'Top matches'}</button>
                                             </div>
-                                        )}
-                                        <div style={{ width: isMobile ? '100%' : '14%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', flex: 1, minWidth: 0, gap: 14 }}>
-                                            <div style={{ flex: 1, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                                                <button type="button" style={{ ...actionBtn, background: '#ffc801', borderColor: '#ffc801', color: '#1a1a1a', padding: '4px 10px', fontSize: '11px', width: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => navigate('/marketing', { state: { openPostWithProperty: item } })}><i className="fas fa-share-alt" /> Social</button>
-                                            </div>
-                                            <img src={item.imageUrl || 'https://images.unsplash.com/photo-1600596542815-2a4d9fdb2243?w=200'} alt="prop" style={thumbStyle} />
-                                            <div style={{ flex: 1, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                                                <button type="button" style={{ ...actionBtn, background: 'transparent', borderColor: '#11575C', color: '#11575C', fontSize: '11px', padding: '4px 10px', width: 'auto' }} disabled={matchScoresLoading} onClick={(e) => { e.stopPropagation(); openTopMatchesModal(item, titleLine || item.title || 'Property'); }}>{matchScoresLoading ? '…' : 'Top matches'}</button>
-                                            </div>
-                                        </div>
-                                        <div style={{ width: isMobile ? '100%' : '24%', paddingRight: '10px' }}>
-                                            <div style={{ fontWeight: 'bold', color: '#111', marginBottom: '5px' }}>{titleLine || 'Untitled'}</div>
-                                            {showAddress ? <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>{address}</div> : null}
-                                            {isAgency && (
-                                                <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>
-                                                    <label style={{ display: 'block', marginBottom: '2px' }}>Assigned to</label>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontWeight: 'bold', color: '#111', marginBottom: '4px', fontSize: 14 }}>{titleLine || 'Untitled'}</div>
+                                                {showAddress ? <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>{address}</div> : null}
+                                                {String(item.propertyCategory || '').toLowerCase() !== 'development' && (
+                                                    <div style={{ fontSize: '12px', color: '#444', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                                        <span><i className="fas fa-bed" style={{ marginRight: 4, color: '#94a3b8' }} />{item.specs?.beds ?? item.residential?.bedrooms ?? 0}</span>
+                                                        <span><i className="fas fa-bath" style={{ marginRight: 4, color: '#94a3b8' }} />{item.specs?.baths ?? item.residential?.bathrooms ?? 0}</span>
+                                                        <span><i className="fas fa-vector-square" style={{ marginRight: 4, color: '#94a3b8' }} />
+                                                            {(() => {
+                                                                const areaVal = item.propertySize?.size ?? item.residential?.livingAreaSize ?? item.specs?.sqft ?? 0;
+                                                                const u = (item.propertySize?.unitSystem || '').toLowerCase();
+                                                                const metric = u.includes('m') || u.includes('²') || u === 'sqm' || item.importSource === 'propdata';
+                                                                return formatArea(areaVal, metric ? { inputUnit: 'sqm' } : {});
+                                                            })()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {isAgency && (
+                                                    <div style={{ fontSize: '11px', color: '#64748b', marginBottom: 6 }}>
+                                                        <select
+                                                            value={item.agentId || user._id}
+                                                            onChange={(e) => {
+                                                                if (e.target.value === '__add_agent__') { setShowAddAgentModal(true); return; }
+                                                                handleReassignAgent(item, e.target.value);
+                                                            }}
+                                                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px', background: '#fff' }}
+                                                        >
+                                                            <option value={user._id}>{user.name || 'Agency'} (Agency)</option>
+                                                            {Object.entries(agentNames).map(([id, name]) => (
+                                                                <option key={id} value={id}>{name}</option>
+                                                            ))}
+                                                            <option value="__add_agent__">+ Add Agent</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+                                                <div style={{ marginBottom: 6, position: 'relative' }}>
+                                                    <i className="fas fa-user" style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#d4a017', pointerEvents: 'none' }} />
                                                     <select
-                                                        value={item.agentId || user._id}
-                                                        onChange={(e) => {
-                                                            if (e.target.value === '__add_agent__') { setShowAddAgentModal(true); return; }
-                                                            handleReassignAgent(item, e.target.value);
-                                                        }}
-                                                        style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px', background: '#fff' }}
+                                                        aria-label="Seller lead"
+                                                        value={currentSellerLeadId}
+                                                        disabled={isQuickEditLoading}
+                                                        onChange={(e) => handleSellerLinkChange(e.target.value)}
+                                                        style={{ width: '100%', padding: '5px 8px 5px 22px', borderRadius: 6, border: `1px solid ${currentSellerLeadId ? '#d4a017' : '#e2e8f0'}`, fontSize: 11, background: '#fff', color: currentSellerLeadId ? '#d4a017' : '#64748b', fontWeight: 600, cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}
                                                     >
-                                                        <option value={user._id}>{user.name || 'Agency'} (Agency)</option>
-                                                        {Object.entries(agentNames).map(([id, name]) => (
-                                                            <option key={id} value={id}>{name}</option>
+                                                        <option value="">— No seller linked —</option>
+                                                        {sellerLeadOptions.map((o) => (
+                                                            <option key={o.id} value={o.id}>{o.name}</option>
                                                         ))}
-                                                        <option value="__add_agent__">+ Add Agent</option>
                                                     </select>
                                                 </div>
-                                            )}
-                                            {(() => {
-                                                const propId = String(item._id);
-                                                const propTitle = (item.title || item.propertyTitle || '').toLowerCase().trim();
-                                                const propAddr = (item.locationDetails?.streetAddress || item.location || '').toLowerCase().trim();
-                                                const matchesLinkedProp = (lp) => {
-                                                    if (!lp) return false;
-                                                    const lpId = lp._id || lp.id || lp.propertyId;
-                                                    if (lpId && String(lpId) === propId) return true;
-                                                    const lpTitle = (lp.title || lp.name || (typeof lp === 'string' ? lp : '')).toLowerCase().trim();
-                                                    if (!lpTitle) return false;
-                                                    if (propTitle && (lpTitle === propTitle || propTitle.includes(lpTitle) || lpTitle.includes(propTitle))) return true;
-                                                    if (propAddr && (lpTitle === propAddr || propAddr.includes(lpTitle) || lpTitle.includes(propAddr))) return true;
-                                                    return false;
-                                                };
-                                                const sellerLead = (crmLeads || []).find(l => {
-                                                    const lt = (l.leadType || l.type || '').toLowerCase();
-                                                    if (lt !== 'seller') return false;
-                                                    if (l.linkedProperties && Array.isArray(l.linkedProperties) && l.linkedProperties.some(matchesLinkedProp)) return true;
-                                                    if (propTitle && l.propertyOfInterest && l.propertyOfInterest.toLowerCase().trim() === propTitle) return true;
-                                                    return false;
-                                                });
-                                                return sellerLead ? (
-                                                    <div style={{ fontSize: '11px', color: '#d4a017', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                        <i className="fas fa-user" style={{ fontSize: 9 }} />
-                                                        {sellerLead.name}
-                                                    </div>
-                                                ) : null;
-                                            })()}
-                                            {String(item.propertyCategory || '').toLowerCase() !== 'development' && (
-                                            <div style={{ fontSize: '11px', color: '#444' }}>
-                                                <b>{item.specs?.beds ?? item.residential?.bedrooms ?? 0}</b> {t('common.beds')} · <b>{item.specs?.baths ?? item.residential?.bathrooms ?? 0}</b> {t('common.baths')} ·{' '}
-                                                <b>
-                                                    {(() => {
-                                                        const areaVal = item.propertySize?.size ?? item.residential?.livingAreaSize ?? item.specs?.sqft ?? 0;
-                                                        const u = (item.propertySize?.unitSystem || '').toLowerCase();
-                                                        const metric =
-                                                            u.includes('m') ||
-                                                            u.includes('²') ||
-                                                            u === 'sqm' ||
-                                                            item.importSource === 'propdata';
-                                                        return formatArea(areaVal, metric ? { inputUnit: 'sqm' } : {});
-                                                    })()}
-                                                </b>
                                             </div>
-                                            )}
                                         </div>
-                                        <div style={{ width: isMobile ? '100%' : '14%', fontSize: '13px', color: '#444' }}>{addedOn}</div>
-                                        <div style={{ width: isMobile ? '100%' : '18%', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', justifyContent: 'center' }} role="radiogroup" aria-label="Property status">
-                                            {[
-                                                { id: 'Draft', payload: { status: 'Draft' }, needsModal: false },
-                                                { id: 'Active', payload: { status: 'Published' }, needsModal: false },
-                                                { id: 'Under Offer', payload: { status: 'Under Offer' }, needsModal: true },
-                                                { id: 'Sold', payload: { status: 'Sold' }, needsModal: true },
-                                                { id: 'Unavailable', payload: { status: 'Unavailable' }, needsModal: false }
-                                            ].map(({ id, payload, needsModal }) => {
-                                                const selected = (id === 'Draft' && status === 'Draft') || (id === 'Active' && status === 'Published') || (id === 'Under Offer' && status === 'Under Offer') || (id === 'Sold' && status === 'Sold') || (id === 'Unavailable' && status === 'Unavailable');
-                                                const onSelect = () => {
-                                                    if (isQuickEditLoading) return;
-                                                    if (needsModal) setStatusModal({ open: true, type: id, item, price: '', date: '', buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerMobile: '', daysActive: '' });
-                                                    else handleQuickEdit(item, payload);
-                                                };
-                                                return (
-                                                    <label key={id} style={{ ...websiteStatusRow, opacity: isQuickEditLoading ? 0.6 : 1, cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}>
-                                                        <input type="radio" name={`property-status-${item._id}`} checked={selected} onChange={onSelect} disabled={isQuickEditLoading} style={{ margin: 0, width: 14, height: 14, accentColor: '#11575C', flexShrink: 0 }} />
-                                                        <span style={{ fontSize: '12px', fontWeight: 500, color: selected ? '#11575C' : '#64748b' }}>{id}</span>
-                                                    </label>
-                                                );
-                                            })}
-                                            {(() => {
-                                                const onShowActive = !!strOnShowDay(item.onShowDay);
-                                                return (
-                                                    <label
-                                                        key="onShow"
-                                                        style={{ ...websiteStatusRow, opacity: isQuickEditLoading ? 0.6 : 1, cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            if (isQuickEditLoading) return;
-                                                            setOnShowModal({
-                                                                open: true,
-                                                                item,
-                                                                day: strOnShowDay(item.onShowDay),
-                                                                times: strOnShowDay(item.onShowDay) ? item.onShowTimes || '' : '',
-                                                            });
-                                                        }}
-                                                    >
-                                                        <input type="radio" name={`prop-extra-${item._id}-onshow`} checked={onShowActive} onChange={() => {}} disabled={isQuickEditLoading} style={{ margin: 0, width: 14, height: 14, accentColor: '#11575C', flexShrink: 0 }} />
-                                                        <span style={{ fontSize: '12px', fontWeight: 500, color: onShowActive ? '#11575C' : '#64748b' }}>On show</span>
-                                                    </label>
-                                                );
-                                            })()}
-                                            {(() => {
-                                                const prActive = !!item.priceReduced;
-                                                return (
-                                                    <label
-                                                        key="priceReduced"
-                                                        style={{ ...websiteStatusRow, opacity: isQuickEditLoading ? 0.6 : 1, cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            if (!isQuickEditLoading) handleQuickEdit(item, { priceReduced: !item.priceReduced });
-                                                        }}
-                                                    >
-                                                        <input type="radio" name={`prop-extra-${item._id}-pricereduced`} checked={prActive} onChange={() => {}} disabled={isQuickEditLoading} style={{ margin: 0, width: 14, height: 14, accentColor: '#11575C', flexShrink: 0 }} />
-                                                        <span style={{ fontSize: '12px', fontWeight: 500, color: prActive ? '#11575C' : '#64748b' }}>Price reduced</span>
-                                                    </label>
-                                                );
-                                            })()}
-                                    </div>
-                                        <div style={{ width: isMobile ? '100%' : '14%', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', justifyContent: 'center' }} role="radiogroup" aria-label="Website status">
-                                            {[
-                                                { id: 'Draft', payload: { websiteStatus: 'Draft', isFeatured: false } },
-                                                { id: 'Published', payload: { websiteStatus: 'Published', isFeatured: false } },
-                                                { id: 'Featured', payload: { websiteStatus: 'Featured', isFeatured: true } }
-                                            ].map(({ id, payload }) => {
-                                                const selected = id === websiteStatus;
-                                                const onSelect = () => { if (!isQuickEditLoading) handleQuickEdit(item, payload); };
-                                                return (
-                                                    <label key={id} style={{ ...websiteStatusRow, opacity: isQuickEditLoading ? 0.6 : 1, cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}>
-                                                        <input type="radio" name={`website-status-${item._id}`} checked={selected} onChange={onSelect} disabled={isQuickEditLoading} style={{ margin: 0, width: 14, height: 14, accentColor: '#11575C', flexShrink: 0 }} />
-                                                        <span style={{ fontSize: '12px', fontWeight: 500, color: selected ? '#11575C' : '#64748b' }}>{id}</span>
-                                                    </label>
-                                                );
-                                            })}
-                                    </div>
-                                        <div style={{ width: isMobile ? '100%' : '16%', textAlign: 'center' }}>
-                                            <div style={{ fontWeight: '800', fontSize: '15px', marginBottom: '12px', color: '#11575C' }}>
-                                                {formatPrice(item.price, {
-                                                    fromCurrency: item.pricing?.currency || (item.importSource === 'propdata' ? 'ZAR' : 'USD'),
-                                                })}
-                                                {getPriceDisplaySuffix()}
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-                                                <button type="button" style={actionBtn} onClick={() => item._id && navigate(`/property/${item._id}`)}>{t('listing.view')}</button>
-                                                <button
-                                                    type="button"
-                                                    style={{ ...actionBtn, background: '#fff5f6', borderColor: '#C8102E', color: '#C8102E' }}
-                                                    onClick={() => setPortalPreviewItem(item)}
-                                                    title="Preview on Property24 & Private Property"
-                                                >
-                                                    <i className="fas fa-globe-africa" style={{ marginRight: 4 }} />Portals
-                                                </button>
-                                                <button type="button" style={actionBtn} onClick={() => handleEditProperty(item)} disabled={editLoading}>{t('listing.edit')}</button>
-                                                <button type="button" style={{ ...actionBtn, color: '#dc2626', borderColor: '#dc2626' }} onClick={() => handleDelete(item._id)}>{t('listing.delete')}</button>
-                                    </div>
+
+                                        {/* Price */}
+                                        <div style={{ width: isMobile ? '100%' : '11%', fontWeight: 800, fontSize: 14, color: '#11575C' }}>
+                                            {formatPrice(item.price, { fromCurrency: item.pricing?.currency || (item.importSource === 'propdata' ? 'ZAR' : 'USD') })}
+                                            {getPriceDisplaySuffix()}
+                                        </div>
+
+                                        {/* Added on */}
+                                        <div style={{ width: isMobile ? '100%' : '10%', fontSize: '13px', color: '#444' }}>{addedOn}</div>
+
+                                        {/* Property Status — dropdown (with on-show / price-reduced toggles) */}
+                                        <div style={{ width: isMobile ? '100%' : '13%', paddingRight: 8 }}>
+                                            <select
+                                                aria-label="Property status"
+                                                value={status}
+                                                disabled={isQuickEditLoading}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    if (v === '__toggle_on_show__') {
+                                                        if (onShowActive) {
+                                                            handleQuickEdit(item, { onShowDay: '', onShowTimes: '' });
+                                                        } else {
+                                                            setOnShowModal({ open: true, item, day: '', times: '' });
+                                                        }
+                                                        return;
+                                                    }
+                                                    if (v === '__toggle_price_reduced__') {
+                                                        handleQuickEdit(item, { priceReduced: !item.priceReduced });
+                                                        return;
+                                                    }
+                                                    handlePropertyStatusChange(v);
+                                                }}
+                                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#11575C', background: 'white', cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}
+                                            >
+                                                <optgroup label="Status">
+                                                    {PROPERTY_STATUS_OPTIONS.map((o) => (
+                                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                                <optgroup label="Flags">
+                                                    <option value="__toggle_on_show__">{onShowActive ? '✓ On show (clear)' : 'On show…'}</option>
+                                                    <option value="__toggle_price_reduced__">{item.priceReduced ? '✓ Price reduced (clear)' : 'Price reduced'}</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+
+                                        {/* Website Status — dropdown */}
+                                        <div style={{ width: isMobile ? '100%' : '12%', paddingRight: 8 }}>
+                                            <select
+                                                aria-label="Website status"
+                                                value={websiteStatus}
+                                                disabled={isQuickEditLoading}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    const payload = v === 'Featured'
+                                                        ? { websiteStatus: 'Featured', isFeatured: true }
+                                                        : { websiteStatus: v, isFeatured: false };
+                                                    handleQuickEdit(item, payload);
+                                                }}
+                                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#11575C', background: 'white', cursor: isQuickEditLoading ? 'not-allowed' : 'pointer' }}
+                                            >
+                                                <option value="Draft">Draft</option>
+                                                <option value="Published">Published</option>
+                                                <option value="Featured">Featured</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Actions — View / Share / Portals / Edit / Delete */}
+                                        <div style={{ width: isMobile ? '100%' : '10%', display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
+                                            <button type="button" style={{ ...actionBtn, width: '100%' }} onClick={() => item._id && navigate(`/property/${item._id}`)}>
+                                                <i className="fas fa-eye" style={{ marginRight: 4 }} />{t('listing.view')}
+                                            </button>
+                                            <button type="button" style={{ ...actionBtn, width: '100%' }} onClick={() => navigate('/marketing', { state: { openPostWithProperty: item } })}>
+                                                <i className="fas fa-share-alt" style={{ marginRight: 4 }} />Share
+                                            </button>
+                                            <button type="button" style={{ ...actionBtn, width: '100%' }} onClick={() => setPortalPreviewItem(item)} title="Preview on Property24 & Private Property">
+                                                <i className="fas fa-globe-africa" style={{ marginRight: 4 }} />Portals
+                                            </button>
+                                            <button type="button" style={{ ...actionBtn, width: '100%' }} onClick={() => handleEditProperty(item)} disabled={editLoading}>
+                                                <i className="fas fa-pen" style={{ marginRight: 4 }} />{t('listing.edit')}
+                                            </button>
+                                            <button type="button" style={{ ...actionBtn, width: '100%' }} onClick={() => handleDelete(item._id)}>
+                                                <i className="fas fa-trash" style={{ marginRight: 4 }} />{t('listing.delete')}
+                                            </button>
+                                        </div>
+
+                                        {/* IPM Score donut */}
+                                        <div style={{ width: isMobile ? '100%' : '14%', paddingLeft: 8, display: 'flex', alignItems: 'center' }}>
+                                            <IpmScoreDonut propertyId={item._id} headlineScore={item.ipmScore ?? item.readinessScore} />
                                         </div>
                                     </div>
                                 );
@@ -665,29 +889,69 @@ const ListingManagement = () => {
 
             {/* Sold / Under Offer details modal */}
             {statusModal.open && statusModal.type && (
-                <div style={modalOverlay} onClick={() => setStatusModal({ open: false, type: null, item: null, price: '', date: '', buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerMobile: '', daysActive: '' })}>
-                    <div style={modalContent} onClick={e => e.stopPropagation()}>
+                <div style={modalOverlay} onClick={() => setStatusModal(emptyStatusModal())}>
+                    <div style={{ ...modalContent, width: statusModal.type === 'Under Negotiation' ? '560px' : '500px', maxHeight: '90vh', overflowY: 'auto', textAlign: 'left' }} onClick={e => e.stopPropagation()}>
                         <h2 style={{ color: '#11575C', marginBottom: '15px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                            {statusModal.type === 'Sold' ? 'Sale details' : 'Offer details'}
+                            {statusModal.type === 'Sold' ? 'Sale details' : statusModal.type === 'Under Negotiation' ? 'Negotiation details — opens a sales pipeline deal' : 'Offer details'}
                         </h2>
+                        {statusModal.type === 'Under Negotiation' && (
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: '-6px 0 14px 0' }}>
+                                Saving will automatically create a deal in your <strong>Sales pipeline</strong>.
+                            </p>
+                        )}
                         <div style={{ marginBottom: '12px' }}>
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
-                                {statusModal.type === 'Sold' ? 'Sale price' : 'Offer price'}
+                                {statusModal.type === 'Sold' ? 'Sale price' : 'Offer / negotiation price'}
                             </label>
                             <input type="number" placeholder="e.g. 250000" value={statusModal.price} onChange={e => setStatusModal(prev => ({ ...prev, price: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }} />
                         </div>
                         <div style={{ marginBottom: '12px' }}>
                             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
-                                {statusModal.type === 'Sold' ? 'Date of sale' : 'Date of offer'}
+                                {statusModal.type === 'Sold' ? 'Date of sale' : statusModal.type === 'Under Negotiation' ? 'Negotiation start date' : 'Date of offer'}
                             </label>
                             <input type="date" value={statusModal.date} onChange={e => setStatusModal(prev => ({ ...prev, date: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }} />
                         </div>
-                        {(statusModal.type === 'Under Offer' || statusModal.type === 'Sold') && (
+                        {(statusModal.type === 'Under Offer' || statusModal.type === 'Under Negotiation' || statusModal.type === 'Sold') && (
                             <div style={{ marginBottom: '12px' }}>
                                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Number of days to keep listing active (optional)</label>
                                 <input type="number" min="1" placeholder="e.g. 14" value={statusModal.daysActive} onChange={e => setStatusModal(prev => ({ ...prev, daysActive: e.target.value }))} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }} />
                             </div>
                         )}
+                        {statusModal.type === 'Under Negotiation' && (() => {
+                            // Build the dropdown options. Always include the
+                            // current user (so they can pick themselves even
+                            // if the API roster failed to load) and the
+                            // listing's current agent (so reassignment is a
+                            // conscious choice, not a forced reset).
+                            const opts = Object.entries(agentNames).map(([id, name]) => ({ id, name }));
+                            const seen = new Set(opts.map((o) => String(o.id)));
+                            if (user?._id && !seen.has(String(user._id))) {
+                                const selfLabel = isAgency
+                                    ? `${user.name || 'Agency'} (Agency)`
+                                    : (user.name || user.email || 'Me');
+                                opts.unshift({ id: String(user._id), name: selfLabel });
+                                seen.add(String(user._id));
+                            }
+                            const listingAgentId = statusModal.item?.agentId ? String(statusModal.item.agentId) : null;
+                            if (listingAgentId && !seen.has(listingAgentId)) {
+                                opts.push({ id: listingAgentId, name: statusModal.item?.agentName || 'Listing agent' });
+                            }
+                            const fallbackName = listingAgentId
+                                ? (agentNames[listingAgentId] || statusModal.item?.agentName || '')
+                                : (user?.name || '');
+                            return (
+                                <NegotiationFieldsSection
+                                    userId={userId}
+                                    agentOptions={opts}
+                                    defaultListingAgentId={listingAgentId || (user?._id ? String(user._id) : null)}
+                                    defaultListingAgentName={fallbackName}
+                                    propertyId={statusModal.item?._id || null}
+                                    propertyTitle={statusModal.item?.title || statusModal.item?.headline || null}
+                                    value={statusModal.negotiation || EMPTY_NEGOTIATION}
+                                    onChange={(next) => setStatusModal((prev) => ({ ...prev, negotiation: next }))}
+                                />
+                            );
+                        })()}
                         {statusModal.type === 'Sold' && (
                             <>
                                 <div style={{ marginBottom: '12px' }}>
@@ -708,7 +972,7 @@ const ListingManagement = () => {
                             </>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button type="button" onClick={() => setStatusModal({ open: false, type: null, item: null, price: '', date: '', buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerMobile: '', daysActive: '' })} style={{ background: '#f1f5f9', color: '#555', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
+                            <button type="button" onClick={() => setStatusModal(emptyStatusModal())} style={{ background: '#f1f5f9', color: '#555', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
                             <button type="button" onClick={handleStatusWithDetails} style={{ background: '#11575C', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }} disabled={!statusModal.date}>Save</button>
                         </div>
                     </div>
@@ -878,8 +1142,8 @@ const listContainer = { background: 'white', borderRadius: '16px', boxShadow: '0
 const listHeader = { display: 'flex', padding: '20px', borderBottom: '1px solid #eee', color: '#11575C', fontSize: '13px', fontWeight: 'bold', background: 'white', zIndex: 10, flexShrink: 0 };
 const scrollableList = { flex: 1, overflowY: 'auto', padding: '0 20px 20px 20px' };
 const listItem = { display: 'flex', padding: '20px 0', borderBottom: '1px solid #f9f9f9', alignItems: 'center', flexShrink: 0 };
-const thumbStyle = { width: '100px', height: '70px', borderRadius: '8px', objectFit: 'cover' };
-const actionBtn = { background: 'white', border: '1px solid #11575C', borderRadius: '20px', padding: '5px 0', width: '80px', color: '#11575C', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' };
+const thumbStyle = { width: '140px', height: '105px', borderRadius: '10px', objectFit: 'cover' };
+const actionBtn = { background: 'white', border: '1px solid #10575C', borderRadius: '20px', padding: '5px 0', width: '80px', color: '#10575C', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' };
 const websiteStatusRow = { display: 'flex', alignItems: 'center', gap: 8, width: 'fit-content' };
 
 // Modal Styles

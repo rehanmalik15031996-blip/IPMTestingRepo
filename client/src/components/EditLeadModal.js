@@ -387,7 +387,7 @@ const EditLeadModal = ({ isOpen, onClose, onSuccess, userId, user, lead, leadInd
                                 </div>
                                 <div>
                                     <label style={labelStyle}>Asking price</label>
-                                    <input type="text" value={s.askingPrice} onChange={(e) => setSellerDetail('askingPrice', e.target.value)} placeholder="Currency amount" style={inputStyle} />
+                                    <input type="text" value={s.askingPrice} onChange={(e) => setSellerDetail('askingPrice', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                 </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -474,11 +474,11 @@ const EditLeadModal = ({ isOpen, onClose, onSuccess, userId, user, lead, leadInd
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
                                     <label style={labelStyle}>Budget min</label>
-                                    <input type="text" value={b.budgetMin} onChange={(e) => setBuyerDetail('budgetMin', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                    <input type="text" value={b.budgetMin} onChange={(e) => setBuyerDetail('budgetMin', e.target.value)} placeholder="ZAR min" style={inputStyle} />
                                 </div>
                                 <div>
                                     <label style={labelStyle}>Budget max</label>
-                                    <input type="text" value={b.budgetMax} onChange={(e) => setBuyerDetail('budgetMax', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                    <input type="text" value={b.budgetMax} onChange={(e) => setBuyerDetail('budgetMax', e.target.value)} placeholder="ZAR max" style={inputStyle} />
                                 </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -506,7 +506,7 @@ const EditLeadModal = ({ isOpen, onClose, onSuccess, userId, user, lead, leadInd
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                     <div>
                                         <label style={labelStyle}>Pre-approval amount</label>
-                                        <input type="text" value={b.preApprovalAmount} onChange={(e) => setBuyerDetail('preApprovalAmount', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                        <input type="text" value={b.preApprovalAmount} onChange={(e) => setBuyerDetail('preApprovalAmount', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                     </div>
                                     <div>
                                         <label style={labelStyle}>Pre-approval expiry</label>
@@ -602,13 +602,13 @@ const EditLeadModal = ({ isOpen, onClose, onSuccess, userId, user, lead, leadInd
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
                                     <label style={labelStyle}>Capital available</label>
-                                    <input type="text" value={inv.capitalAvailable} onChange={(e) => setInvestorDetail('capitalAvailable', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                    <input type="text" value={inv.capitalAvailable} onChange={(e) => setInvestorDetail('capitalAvailable', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                 </div>
                                 <div>
                                     <label style={labelStyle}>Deal size min – max</label>
                                     <div style={{ display: 'flex', gap: 8 }}>
-                                        <input type="text" value={inv.dealSizeMin} onChange={(e) => setInvestorDetail('dealSizeMin', e.target.value)} placeholder="Min" style={{ ...inputStyle, flex: 1 }} />
-                                        <input type="text" value={inv.dealSizeMax} onChange={(e) => setInvestorDetail('dealSizeMax', e.target.value)} placeholder="Max" style={{ ...inputStyle, flex: 1 }} />
+                                        <input type="text" value={inv.dealSizeMin} onChange={(e) => setInvestorDetail('dealSizeMin', e.target.value)} placeholder="ZAR min" style={{ ...inputStyle, flex: 1 }} />
+                                        <input type="text" value={inv.dealSizeMax} onChange={(e) => setInvestorDetail('dealSizeMax', e.target.value)} placeholder="ZAR max" style={{ ...inputStyle, flex: 1 }} />
                                     </div>
                                 </div>
                             </div>
@@ -643,7 +643,7 @@ const EditLeadModal = ({ isOpen, onClose, onSuccess, userId, user, lead, leadInd
                                 </div>
                                 <div>
                                     <label style={labelStyle}>Portfolio value</label>
-                                    <input type="text" value={inv.portfolioValue} onChange={(e) => setInvestorDetail('portfolioValue', e.target.value)} placeholder="Currency" style={inputStyle} />
+                                    <input type="text" value={inv.portfolioValue} onChange={(e) => setInvestorDetail('portfolioValue', e.target.value)} placeholder="ZAR amount" style={inputStyle} />
                                 </div>
                             </div>
                             <div>

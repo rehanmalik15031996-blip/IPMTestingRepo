@@ -149,6 +149,14 @@ module.exports = async (req, res) => {
       mobile: newMobile ?? existing.mobile,
       type: explicitlyClearProperty ? '—' : (lead.propertyOfInterest || existing.type || '—'),
       propertyOfInterest: explicitlyClearProperty ? '' : (newPropertyOfInterest ?? existing.propertyOfInterest),
+      // Mirror the linked property's id at the top level so downstream consumers
+      // (CMA report photo picker, sales pipeline) don't need to reach into
+      // linkedProperties to find it.
+      propertyId: explicitlyClearProperty
+        ? null
+        : (lead.propertyId !== undefined
+            ? (lead.propertyId ? String(lead.propertyId) : null)
+            : (linkedProperties[0]?.id ? String(linkedProperties[0].id) : (existing.propertyId || null))),
       linkedProperties: linkedProperties.length ? linkedProperties : (explicitlyClearProperty ? [] : (existing.linkedProperties || [])),
       // Preserve status when only reassigning agent (so lead doesn’t reset to “new”)
       status: newStatus !== undefined ? newStatus : (existing.status || 'new')

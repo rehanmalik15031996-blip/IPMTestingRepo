@@ -49,6 +49,9 @@ const AdminDemo = () => {
     const [demoUsers, setDemoUsers] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // roleKey -> selected userId for roles that expose multiple options
+    // (buyer/seller/investor). Defaults to the API's first option per role.
+    const [selectedOption, setSelectedOption] = useState({});
 
     const realUser = (() => {
         const ds = getDemoState();
@@ -61,17 +64,42 @@ const AdminDemo = () => {
         if (ds) exitDemoMode();
 
         api.get('/api/admin/demo-users')
-            .then((res) => { setDemoUsers(res.data); setLoading(false); })
+            .then((res) => {
+                setDemoUsers(res.data);
+                const initial = {};
+                Object.entries(res.data || {}).forEach(([key, value]) => {
+                    if (Array.isArray(value?._options) && value._options.length > 0) {
+                        initial[key] = String(value._options[0]._id);
+                    }
+                });
+                setSelectedOption(initial);
+                setLoading(false);
+            })
             .catch((err) => { setError(err.response?.data?.message || err.message); setLoading(false); });
     }, []);
 
     const handleLaunch = useCallback((roleKey) => {
         if (!demoUsers || !realUser) return;
-        const ok = startDemoMode(realUser, demoUsers, roleKey);
+        let usersForLaunch = demoUsers;
+        const role = demoUsers[roleKey];
+        if (Array.isArray(role?._options) && role._options.length > 0) {
+            const wantedId = selectedOption[roleKey] ? String(selectedOption[roleKey]) : String(role._options[0]._id);
+            const chosen = role._options.find((o) => String(o._id) === wantedId) || role._options[0];
+            usersForLaunch = {
+                ...demoUsers,
+                [roleKey]: {
+                    ...role,
+                    ...chosen,
+                    _label: role._label,
+                    _options: role._options,
+                },
+            };
+        }
+        const ok = startDemoMode(realUser, usersForLaunch, roleKey);
         if (ok) {
             navigate(ROLE_HOME_ROUTE[roleKey] || '/dashboard');
         }
-    }, [demoUsers, realUser, navigate]);
+    }, [demoUsers, realUser, navigate, selectedOption]);
 
     const handleBack = () => {
         exitDemoMode();
@@ -117,6 +145,9 @@ const AdminDemo = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
                 {availableRoles.map((roleKey) => {
                     const user = demoUsers[roleKey];
+                    const options = Array.isArray(user._options) ? user._options : null;
+                    const selectedId = selectedOption[roleKey] ? String(selectedOption[roleKey]) : (options ? String(options[0]._id) : String(user._id));
+                    const activeUser = options ? (options.find((o) => String(o._id) === selectedId) || options[0]) : user;
                     return (
                         <div
                             key={roleKey}
@@ -132,17 +163,40 @@ const AdminDemo = () => {
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{ROLE_LABELS[roleKey] || roleKey}</span>
-                                {user._propertyCount > 0 && (
+                                {activeUser._propertyCount > 0 && (
                                     <span style={{ fontSize: 10, background: '#f0fdfa', color: '#10575c', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
-                                        {user._propertyCount} listing{user._propertyCount !== 1 ? 's' : ''}
+                                        {activeUser._propertyCount} listing{activeUser._propertyCount !== 1 ? 's' : ''}
                                     </span>
                                 )}
                             </div>
                             <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.4 }}>{ROLE_DESCRIPTIONS[roleKey]}</p>
-                            <div style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                <i className="fas fa-user" style={{ fontSize: 9 }} />
-                                <span>{user.name}</span>
-                            </div>
+                            {options && options.length > 1 ? (
+                                <select
+                                    aria-label={`Choose ${ROLE_LABELS[roleKey] || roleKey} demo account`}
+                                    value={selectedId}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedOption((prev) => ({ ...prev, [roleKey]: e.target.value }));
+                                    }}
+                                    style={{
+                                        marginTop: 4, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1',
+                                        fontSize: 12, color: '#0f172a', background: '#f8fafc', cursor: 'pointer',
+                                        width: '100%',
+                                    }}
+                                >
+                                    {options.map((o) => (
+                                        <option key={o._id} value={String(o._id)}>
+                                            {o._pinned ? '★ ' : ''}{o.name || o.email || 'Unnamed'}{o._propertyCount > 0 ? ` · ${o._propertyCount} listing${o._propertyCount !== 1 ? 's' : ''}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                    <i className="fas fa-user" style={{ fontSize: 9 }} />
+                                    <span>{activeUser.name}</span>
+                                </div>
+                            )}
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleLaunch(roleKey); }}

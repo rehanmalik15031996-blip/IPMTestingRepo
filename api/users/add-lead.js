@@ -57,6 +57,12 @@ module.exports = async (req, res) => {
     const rawStatus = (lead.status || lead.initialStatus || 'new').toString().trim().toLowerCase();
     const validStatus = ['new', 'contacted', 'qualified', 'viewing_scheduled', 'viewing_completed', 'negotiation', 'under_contract', 'won', 'lost', 'on_hold'].includes(rawStatus) ? rawStatus : 'new';
     const leadId = 'lid_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const allowedLeadTypes = ['buyer', 'seller', 'investor', 'prospect'];
+    const incomingLeadType = (lead.leadType || '').toString().trim().toLowerCase();
+    const resolvedLeadType = allowedLeadTypes.includes(incomingLeadType) ? incomingLeadType : 'buyer';
+    const initialActivity = lead.initialActivity && typeof lead.initialActivity === 'string' && lead.initialActivity.trim()
+      ? lead.initialActivity.trim()
+      : 'Lead created';
     const newLead = {
       id: leadId,
       name,
@@ -67,13 +73,19 @@ module.exports = async (req, res) => {
       status: validStatus,
       lastContact: dateAdded,
       propertyOfInterest: lead.propertyOfInterest || '',
+      // Persist the linked property's id at the top level too so downstream
+      // flows (CMA report photo picker, sales pipeline, etc.) can read it
+      // without having to dig into linkedProperties.
+      propertyId: lead.propertyId ? String(lead.propertyId) : (linkedProperties[0]?.id ? String(linkedProperties[0].id) : null),
       source: lead.source || 'Inquiry',
       dateAdded,
       linkedProperties,
-      activities: [createActivity('Lead created', changedBy)],
-      leadType: lead.leadType === 'seller' ? 'seller' : 'buyer',
-      buyerDetails: lead.leadType === 'buyer' && lead.buyerDetails ? lead.buyerDetails : undefined,
-      sellerDetails: lead.leadType === 'seller' && lead.sellerDetails ? lead.sellerDetails : undefined
+      activities: [createActivity(initialActivity, changedBy)],
+      leadType: resolvedLeadType,
+      buyerDetails: resolvedLeadType === 'buyer' && lead.buyerDetails ? lead.buyerDetails : undefined,
+      sellerDetails: resolvedLeadType === 'seller' && lead.sellerDetails ? lead.sellerDetails : undefined,
+      investorDetails: resolvedLeadType === 'investor' && lead.investorDetails ? lead.investorDetails : undefined,
+      prospectDetails: resolvedLeadType === 'prospect' && lead.prospectDetails ? lead.prospectDetails : undefined
     };
 
     const triggerLeadMatch = (leadPayload, ownerId) => {

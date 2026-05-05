@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import api from '../config/api';
+import { getMarketingCache, setMarketingCache, takeMarketingInvalidated } from '../config/marketingCache';
 import LogoLoading from '../components/LogoLoading';
 import { usePreferences, convertCurrency } from '../context/PreferencesContext';
 import { getDemoState } from '../components/DemoModeBar';
@@ -1242,84 +1243,238 @@ const getWeekLabel = () => {
 };
 
 const renderEnterpriseMarketing = (isMobile, mktState, data) => {
-    const { accounts: liveAccounts = [], networks = [], showPicker, setShowPicker, onConnectPlatform, onDisconnect, connectingPlatform } = mktState;
+    const {
+        accounts: liveAccounts = [],
+        networks = [],
+        showPicker,
+        setShowPicker,
+        onConnectPlatform,
+        onDisconnect,
+        connectingPlatform,
+        onSyncAccounts,
+        onMockConnect,
+        syncBusy,
+        syncMessage,
+        onDismissSyncMessage,
+        summary,
+        scheduledRows,
+        composer,
+        onOpenComposer,
+        onCloseComposer,
+        onSavePost,
+        onDeletePost,
+        selectedPost,
+        onSelectPost,
+        onClosePost,
+    } = mktState;
+    // Three possible data sources for the marketing tab:
+    //   1. data.marketing — admin demo fixture (canned)
+    //   2. summary — server-derived numbers built from the user's listings
+    //      (returned alongside connected accounts whenever they have any)
+    //   3. neither — show "—" placeholders and the connect call-to-action.
     const m = data?.marketing || null;
     const demoMode = !!m;
+    const live = !demoMode && summary ? summary : null;
 
     const accounts = demoMode ? (m.accounts || []) : liveAccounts;
-    const kpiCards = demoMode ? (m.kpis || []) : [
-        { label: 'Reach', value: '—', delta: liveAccounts.length > 0 ? 'From connected accounts' : 'Connect accounts to track', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
-        { label: 'Engagement rate', value: '—', delta: liveAccounts.length > 0 ? 'Across platforms' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
-        { label: 'Link clicks', value: '—', delta: liveAccounts.length > 0 ? 'Tracked via Outstand' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
-        { label: 'Lead inquiries', value: '—', delta: liveAccounts.length > 0 ? 'From social channels' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
-    ];
-    const recentPosts = demoMode ? (m.recentPosts || []) : [];
-    const calendarDays = demoMode ? (m.calendar || getWeekDays()) : getWeekDays();
-    const calendarLabel = demoMode ? (m.calendarLabel || getWeekLabel()) : getWeekLabel();
-    const contentCalendar = demoMode ? (m.contentCalendar || []) : [];
+    const kpiCards = demoMode
+        ? (m.kpis || [])
+        : (live?.kpis || [
+            { label: 'Reach', value: '—', delta: liveAccounts.length > 0 ? 'From connected accounts' : 'Connect accounts to track', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+            { label: 'Engagement rate', value: '—', delta: liveAccounts.length > 0 ? 'Across platforms' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+            { label: 'Link clicks', value: '—', delta: liveAccounts.length > 0 ? 'Tracked via Outstand' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+            { label: 'Lead inquiries', value: '—', delta: liveAccounts.length > 0 ? 'From social channels' : '—', variant: liveAccounts.length > 0 ? 'teal' : 'muted' },
+        ]);
+    const recentPosts = demoMode ? (m.recentPosts || []) : (live?.recentPosts || []);
+    const calendarDays = demoMode ? (m.calendar || getWeekDays()) : (live?.calendar || getWeekDays());
+    const calendarLabel = demoMode ? (m.calendarLabel || getWeekLabel()) : (live?.calendarLabel || getWeekLabel());
+    // Scheduled rows: prefer the user-editable list when we have one, fall
+    // back to the server-generated calendar for first paint.
+    const contentCalendar = demoMode
+        ? (m.contentCalendar || [])
+        : (Array.isArray(scheduledRows) && scheduledRows.length
+            ? scheduledRows
+            : (live?.contentCalendar || []));
+    // Whether this user can compose / edit posts. Disabled only when the
+    // marketing tab is being driven by an admin demo fixture (no handlers).
+    const canCompose = !demoMode && typeof onOpenComposer === 'function';
+    const statusOptions = ['Scheduled', 'Draft', 'Approval', 'Posted'];
+    const composerProperties = (live?.properties || []);
+    const composerAccounts = Array.isArray(liveAccounts) ? liveAccounts : [];
 
     return (
     <>
-        <InsightsBanner text={data?.auraBanners?.marketing || 'Suggestions based on platform activity, campaign performance, and content gaps.'} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <InsightsBanner text={data?.auraBanners?.marketing || 'Suggestions based on platform activity, campaign performance, and content gaps.'} />
+            </div>
+            {canCompose && (
+                <button
+                    type="button"
+                    onClick={() => onOpenComposer('create')}
+                    title="Compose a new post"
+                    style={{
+                        flexShrink: 0, height: 44, padding: '0 18px', borderRadius: 22,
+                        background: '#10575C', color: '#fff', border: 'none', cursor: 'pointer',
+                        fontFamily: FONT, fontSize: FONT_SIZE.body, fontWeight: 700,
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        boxShadow: '0 6px 16px rgba(16,87,92,0.25)',
+                    }}
+                >
+                    <i className="fas fa-plus" style={{ fontSize: 12 }} aria-hidden /> New post
+                </button>
+            )}
+        </div>
 
-        <section style={{ ...card, padding: 12, marginBottom: GAP.section, background: '#EBEBEB', border: 'none', boxShadow: 'none' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 8 }}>
+        <section style={{ ...card, padding: 8, marginBottom: 10, background: '#EBEBEB', border: 'none', boxShadow: 'none' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0,1fr))' : 'repeat(4, minmax(0,1fr))', gap: 6 }}>
                 {kpiCards.map((k) => (
-                    <article key={k.label} style={{ background: '#fff', borderRadius: 16, padding: '10px 12px 9px', overflow: 'hidden' }}>
+                    <article key={k.label} style={{ background: '#fff', borderRadius: 14, padding: '8px 12px 7px', overflow: 'hidden' }}>
                         <div style={{ fontSize: FONT_SIZE.kpiLabel, color: '#4E4E4E', textTransform: 'uppercase', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{k.label}</div>
-                        <div style={{ fontSize: FONT_SIZE.kpiValue, lineHeight: 1.1, fontWeight: 600, color: k.variant === 'danger' ? '#A4260E' : '#10575C', margin: '6px 0 6px' }}>{k.value}</div>
+                        <div style={{ fontSize: FONT_SIZE.kpiValue, lineHeight: 1.1, fontWeight: 600, color: k.variant === 'danger' ? '#A4260E' : '#10575C', margin: '4px 0 4px' }}>{k.value}</div>
                         <div style={complianceKpiPill(k.variant)}>{k.delta}</div>
                     </article>
                 ))}
             </div>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.05fr 0.95fr', gap: GAP.section, marginBottom: GAP.section }}>
-            <div style={{ display: 'grid', gap: GAP.section }}>
-                <article style={{ ...card, padding: GAP.card, position: 'relative' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.05fr 0.95fr', gap: 10, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
+                <article style={{ ...card, padding: 12, position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                         <h2 style={sectionHeading}>Manage Accounts</h2>
-                        <button
-                            type="button"
-                            onClick={() => setShowPicker(!showPicker)}
+                        <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                            {onSyncAccounts && (
+                                <button
+                                    type="button"
+                                    onClick={onSyncAccounts}
+                                    disabled={syncBusy}
+                                    title="Refresh connected accounts from Outstand"
+                                    style={{
+                                        border: '1px solid #10575C', borderRadius: 20, height: 32, padding: '0 14px',
+                                        fontSize: FONT_SIZE.sub, fontWeight: 700, cursor: syncBusy ? 'progress' : 'pointer',
+                                        background: '#fff', color: '#10575C', display: 'inline-flex', alignItems: 'center',
+                                        gap: 6, fontFamily: FONT, opacity: syncBusy ? 0.7 : 1,
+                                    }}
+                                >
+                                    <i className={`fas ${syncBusy ? 'fa-spinner fa-spin' : 'fa-sync-alt'}`} style={{ fontSize: 10 }} aria-hidden />
+                                    {syncBusy ? 'Refreshing…' : 'Refresh'}
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowPicker(!showPicker)}
+                                style={{
+                                    border: 'none', borderRadius: 20, height: 32, padding: '0 16px', fontSize: FONT_SIZE.sub,
+                                    fontWeight: 700, cursor: 'pointer', background: '#10575C', color: '#fff',
+                                    display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FONT
+                                }}
+                            >
+                                <i className="fas fa-plus" style={{ fontSize: 10 }} aria-hidden /> Add Account
+                            </button>
+                        </div>
+                    </div>
+                    {syncMessage && (
+                        <div
+                            role="status"
                             style={{
-                                border: 'none', borderRadius: 20, height: 32, padding: '0 16px', fontSize: FONT_SIZE.sub,
-                                fontWeight: 700, cursor: 'pointer', background: '#10575C', color: '#fff',
-                                display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FONT
+                                marginBottom: 10, padding: '8px 12px', borderRadius: 10, fontSize: FONT_SIZE.sub,
+                                fontFamily: FONT, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                                border: '1px solid ' + (syncMessage.tone === 'success' ? '#10B981' : syncMessage.tone === 'warning' ? '#F59E0B' : '#10575C'),
+                                background: syncMessage.tone === 'success' ? '#ECFDF5' : syncMessage.tone === 'warning' ? '#FFFBEB' : '#F0F9FA',
+                                color: syncMessage.tone === 'success' ? '#065F46' : syncMessage.tone === 'warning' ? '#92400E' : '#10575C',
                             }}
                         >
-                            <i className="fas fa-plus" style={{ fontSize: 10 }} aria-hidden /> Add Account
-                        </button>
-                    </div>
+                            <span style={{ fontWeight: 500, lineHeight: 1.4 }}>
+                                <i
+                                    className={`fas ${syncMessage.tone === 'success' ? 'fa-check-circle' : syncMessage.tone === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}`}
+                                    style={{ marginRight: 8, fontSize: 11 }}
+                                    aria-hidden
+                                />
+                                {syncMessage.text}
+                            </span>
+                            {onDismissSyncMessage && (
+                                <button type="button" onClick={onDismissSyncMessage} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}>
+                                    <i className="fas fa-times" style={{ fontSize: 12 }} aria-hidden />
+                                </button>
+                            )}
+                        </div>
+                    )}
                     {showPicker && (
                         <div style={{ marginBottom: 12, padding: 12, background: '#F9FAFB', borderRadius: 14, border: '1px solid #E1E1E1' }}>
                             <div style={{ fontSize: FONT_SIZE.sub, fontWeight: 600, color: '#384046', marginBottom: 8 }}>Select a platform to connect:</div>
+                            {/*
+                              Instagram has no standalone OAuth consent flow on Meta's
+                              Graph API — IG access is granted via Facebook Business
+                              Login. If the user clicks "Instagram" first they often
+                              just land on instagram.com without seeing an Allow
+                              screen. This callout makes the order explicit.
+                            */}
+                            <div style={{
+                                marginBottom: 10, padding: '8px 10px', borderRadius: 8,
+                                background: '#FFFBEB', border: '1px solid #FCD34D',
+                                fontSize: FONT_SIZE.small, color: '#78350F', lineHeight: 1.45,
+                            }}>
+                                <i className="fas fa-info-circle" style={{ marginRight: 6, fontSize: 11 }} aria-hidden />
+                                <strong>Connecting Instagram?</strong> Click <strong>Facebook</strong> first and approve the consent screen — Instagram Business / Creator accounts authorise via the linked Facebook Page. Personal Instagram accounts can&apos;t be connected.
+                            </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                 {networks.map((net) => {
                                     const pm = PLATFORM_META[net.network] || { label: net.network, icon: 'fa-globe', color: '#8B8F94' };
                                     const alreadyConnected = accounts.some(a => a.platform === net.network);
                                     const isConnecting = connectingPlatform === net.network;
                                     return (
-                                        <button
+                                        <div
                                             key={net.id}
-                                            type="button"
-                                            disabled={isConnecting}
-                                            onClick={() => !alreadyConnected && onConnectPlatform(net.network)}
                                             style={{
-                                                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px',
+                                                display: 'inline-flex', alignItems: 'stretch',
                                                 borderRadius: 12, border: '2px solid ' + (alreadyConnected ? '#10B981' : '#E1E1E1'),
-                                                background: alreadyConnected ? '#ECFDF5' : '#fff', cursor: alreadyConnected ? 'default' : 'pointer',
+                                                background: alreadyConnected ? '#ECFDF5' : '#fff',
                                                 opacity: isConnecting ? 0.6 : 1, fontFamily: FONT, fontSize: FONT_SIZE.sub,
+                                                overflow: 'hidden',
                                             }}
                                         >
-                                            <i className={`fab ${pm.icon}`} style={{ fontSize: 16, color: pm.color }} aria-hidden />
-                                            <span style={{ fontWeight: 600, color: '#384046' }}>{pm.label}</span>
-                                            {alreadyConnected && <i className="fas fa-check-circle" style={{ fontSize: 12, color: '#10B981' }} aria-hidden />}
-                                            {isConnecting && <span style={{ fontSize: 10, color: '#8B8F94' }}>Connecting...</span>}
-                                        </button>
+                                            <button
+                                                type="button"
+                                                disabled={isConnecting}
+                                                onClick={() => !alreadyConnected && onConnectPlatform(net.network)}
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px',
+                                                    background: 'transparent', border: 'none', cursor: alreadyConnected ? 'default' : 'pointer',
+                                                    fontFamily: FONT, fontSize: FONT_SIZE.sub,
+                                                }}
+                                            >
+                                                <i className={`fab ${pm.icon}`} style={{ fontSize: 16, color: pm.color }} aria-hidden />
+                                                <span style={{ fontWeight: 600, color: '#384046' }}>{pm.label}</span>
+                                                {alreadyConnected && <i className="fas fa-check-circle" style={{ fontSize: 12, color: '#10B981' }} aria-hidden />}
+                                                {isConnecting && <span style={{ fontSize: 10, color: '#8B8F94' }}>Connecting...</span>}
+                                            </button>
+                                            {!alreadyConnected && onMockConnect && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onMockConnect(net.network)}
+                                                    title={`Add a demo ${pm.label} account without OAuth`}
+                                                    style={{
+                                                        padding: '0 10px', borderLeft: '1px dashed #CBD5E1',
+                                                        background: '#F8FAFC', border: 'none', cursor: 'pointer',
+                                                        color: '#64748B', fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                                                        textTransform: 'uppercase',
+                                                    }}
+                                                >
+                                                    <i className="fas fa-flask" style={{ marginRight: 4, fontSize: 9 }} aria-hidden />
+                                                    Demo
+                                                </button>
+                                            )}
+                                        </div>
                                     );
                                 })}
                             </div>
+                            {onMockConnect && (
+                                <div style={{ marginTop: 8, fontSize: FONT_SIZE.small, color: '#64748B' }}>
+                                    <i className="fas fa-circle-info" style={{ marginRight: 4 }} aria-hidden />
+                                    No Facebook/IG credentials? Click <strong>Demo</strong> next to any platform to populate the dashboard with a stand-in connection.
+                                </div>
+                            )}
                         </div>
                     )}
                     {accounts.length > 0 ? (
@@ -1334,7 +1489,11 @@ const renderEnterpriseMarketing = (isMobile, mktState, data) => {
                                         <i className={`fab ${pm.icon}`} style={{ fontSize: 14, color: pm.color }} aria-hidden />
                                         <span style={{ fontSize: FONT_SIZE.sub, fontWeight: 600, color: '#384046' }}>{acct.username || pm.label}</span>
                                         {followerLabel && <span style={{ fontSize: 9, color: '#8B8F94', fontWeight: 600 }}>{followerLabel} followers</span>}
-                                        <span style={{ fontSize: 9, color: '#10B981', fontWeight: 700 }}>Connected</span>
+                                        {acct.isMock ? (
+                                            <span style={{ fontSize: 9, color: '#92400E', fontWeight: 700, background: '#FFFBEB', padding: '1px 6px', borderRadius: 8 }}>Demo</span>
+                                        ) : (
+                                            <span style={{ fontSize: 9, color: '#10B981', fontWeight: 700 }}>Connected</span>
+                                        )}
                                         {!demoMode && (
                                             <button type="button" onClick={() => onDisconnect(acct.outstandAccountId)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginLeft: 2 }}>
                                                 <i className="fas fa-times" style={{ fontSize: 10, color: '#D93025' }} aria-hidden />
@@ -1357,19 +1516,19 @@ const renderEnterpriseMarketing = (isMobile, mktState, data) => {
                     )}
                 </article>
 
-                <article style={{ ...card, padding: GAP.card }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                <article style={{ ...card, padding: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                         <h2 style={sectionHeading}>Content calendar</h2>
                         <span style={{ fontSize: FONT_SIZE.body, fontWeight: 600, color: '#8B8F94' }}>{calendarLabel}</span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(7, minmax(72px, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 6, overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch', paddingBottom: isMobile ? 4 : 0 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(7, minmax(72px, 1fr))' : 'repeat(7, minmax(0, 1fr))', gap: 5, overflowX: isMobile ? 'auto' : undefined, WebkitOverflowScrolling: 'touch', paddingBottom: isMobile ? 4 : 0 }}>
                         {calendarDays.map((d) => (
-                            <div key={d.day} style={{ border: '2px solid #E1E1E1', borderRadius: 14, background: '#fafbfc', minHeight: 64, padding: '8px 6px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div key={d.day} style={{ border: '2px solid #E1E1E1', borderRadius: 12, background: '#fafbfc', minHeight: 50, padding: '5px 5px', display: 'flex', flexDirection: 'column', gap: 3 }}>
                                 <div style={{ fontSize: FONT_SIZE.small, fontWeight: 700, color: '#8B8F94', textTransform: 'uppercase' }}>{d.day}</div>
-                                <div style={{ fontSize: 15, fontWeight: 300, color: '#10575C', lineHeight: 1 }}>{d.date}</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 'auto' }}>
+                                <div style={{ fontSize: 13, fontWeight: 300, color: '#10575C', lineHeight: 1 }}>{d.date}</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 'auto' }}>
                                     {(d.slots || []).map((s) => (
-                                        <span key={s.label} style={{ fontSize: 9, fontWeight: 700, padding: '4px 5px', borderRadius: 6, background: s.bg, color: s.fg, textAlign: 'center', lineHeight: 1.2 }}>{s.label}</span>
+                                        <span key={s.label} style={{ fontSize: 9, fontWeight: 700, padding: '2px 4px', borderRadius: 5, background: s.bg, color: s.fg, textAlign: 'center', lineHeight: 1.15 }}>{s.label}</span>
                                     ))}
                                 </div>
                             </div>
@@ -1378,12 +1537,31 @@ const renderEnterpriseMarketing = (isMobile, mktState, data) => {
                 </article>
             </div>
 
-            <article style={{ ...card, padding: GAP.card }}>
-                <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>Recent posts</h2>
+            <article style={{ ...card, padding: 12, display: 'flex', flexDirection: 'column' }}>
+                <h2 style={{ ...sectionHeading, marginBottom: 8 }}>Recent posts</h2>
                 {recentPosts.length > 0 ? (
-                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 0 }}>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: '0 4px 0 0', display: 'grid', gap: 0, maxHeight: isMobile ? 280 : 300, overflowY: 'auto' }}>
                         {recentPosts.map((p, idx) => (
-                            <li key={p.id || idx} style={{ display: 'grid', gridTemplateColumns: isMobile ? '56px 1fr' : '72px 1fr auto', gap: 14, alignItems: 'center', padding: '14px 0', borderTop: idx ? '1px solid #F1F2F4' : 'none' }}>
+                            <li
+                                key={p.id || idx}
+                                onClick={onSelectPost ? () => onSelectPost(p) : undefined}
+                                onKeyDown={onSelectPost ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPost(p); } } : undefined}
+                                role={onSelectPost ? 'button' : undefined}
+                                tabIndex={onSelectPost ? 0 : undefined}
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: isMobile ? '52px 1fr' : '60px 1fr auto',
+                                    gap: 12,
+                                    alignItems: 'center',
+                                    padding: '8px 6px',
+                                    borderTop: idx ? '1px solid #F1F2F4' : 'none',
+                                    cursor: onSelectPost ? 'pointer' : 'default',
+                                    borderRadius: 8,
+                                    transition: 'background 120ms ease',
+                                }}
+                                onMouseEnter={onSelectPost ? (e) => { e.currentTarget.style.background = '#F8FAFC'; } : undefined}
+                                onMouseLeave={onSelectPost ? (e) => { e.currentTarget.style.background = 'transparent'; } : undefined}
+                            >
                                 {p.thumb ? (
                                     <img src={p.thumb} alt="" style={{ width: '100%', aspectRatio: '3/2', objectFit: 'cover', borderRadius: 10, display: 'block' }} />
                                 ) : (
@@ -1422,33 +1600,87 @@ const renderEnterpriseMarketing = (isMobile, mktState, data) => {
             </article>
         </section>
 
-        {contentCalendar.length > 0 && (
-            <article style={{ ...card, padding: GAP.card, marginBottom: GAP.section }}>
-                <h2 style={{ ...sectionHeading, marginBottom: GAP.section }}>Scheduled content — this week</h2>
-                <div style={{ overflowX: 'auto' }}>
+        {(contentCalendar.length > 0 || canCompose) && (
+            <article style={{ ...card, padding: 12, marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <h2 style={{ ...sectionHeading, margin: 0 }}>Scheduled content — this week</h2>
+                    {canCompose && (
+                        <button
+                            type="button"
+                            onClick={() => onOpenComposer('create')}
+                            style={{
+                                height: 34, padding: '0 14px', borderRadius: 17,
+                                background: '#fff', color: '#10575C',
+                                border: '1px solid #10575C', cursor: 'pointer',
+                                fontFamily: FONT, fontSize: FONT_SIZE.button, fontWeight: 700,
+                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                            }}
+                        >
+                            <i className="fas fa-plus" style={{ fontSize: 11 }} aria-hidden /> Add post
+                        </button>
+                    )}
+                </div>
+                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: isMobile ? 240 : 260 }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FONT_SIZE.tableBody, minWidth: isMobile ? 0 : 720 }}>
-                        <thead>
+                        <thead style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
                             <tr style={{ borderBottom: '2px solid #E1E1E1' }}>
-                                {['Day', 'Post', 'Market', 'Platforms', 'Status'].map((h) => (
-                                    <th key={h} style={{ textAlign: 'left', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader, whiteSpace: 'nowrap' }}>{h}</th>
+                                {['Day', 'Post', 'Market', 'Platforms', 'Status', ''].map((h, i) => (
+                                    <th key={h || `col-${i}`} style={{ textAlign: 'left', padding: '10px 8px', color: '#8B8F94', fontWeight: 700, textTransform: 'uppercase', fontSize: FONT_SIZE.tableHeader, whiteSpace: 'nowrap' }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {contentCalendar.map((row) => {
+                            {contentCalendar.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} style={{ padding: '24px 8px', textAlign: 'center', color: '#8B8F94', fontSize: FONT_SIZE.body }}>
+                                        No scheduled posts this week. Click <strong style={{ color: '#10575C' }}>Add post</strong> to get started.
+                                    </td>
+                                </tr>
+                            )}
+                            {contentCalendar.map((row, rowIdx) => {
                                 const tonePill = row.tone === 'ok'
                                     ? { bg: '#D2E4E5', color: '#10575C' }
                                     : row.tone === 'warn'
                                         ? { bg: 'rgba(200,120,20,0.18)', color: '#A65F0A' }
                                         : { bg: 'rgba(107,114,128,0.16)', color: '#4B5563' };
+                                const rowKey = row.id || `${row.day}-${rowIdx}`;
                                 return (
-                                    <tr key={row.day} style={{ borderBottom: '1px solid #F1F2F4' }}>
-                                        <td style={{ padding: '12px 8px', color: '#10575C', fontWeight: 700, whiteSpace: 'nowrap' }}>{row.day}</td>
+                                    <tr key={rowKey} style={{ borderBottom: '1px solid #F1F2F4' }}>
+                                        <td style={{ padding: '12px 8px', color: '#10575C', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                            <div>{row.day}</div>
+                                            {row.scheduleLabel && (
+                                                <div style={{ fontSize: 11, color: '#64748B', fontWeight: 500, marginTop: 2 }}>{row.scheduleLabel}</div>
+                                            )}
+                                        </td>
                                         <td style={{ padding: '12px 8px', color: '#060606', fontWeight: 600 }}>{row.post}</td>
                                         <td style={{ padding: '12px 8px', color: '#384046', whiteSpace: 'nowrap' }}>{row.market}</td>
                                         <td style={{ padding: '12px 8px', color: '#384046', whiteSpace: 'nowrap' }}>{row.platform}</td>
                                         <td style={{ padding: '12px 8px' }}>
                                             <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 20, fontSize: FONT_SIZE.button, fontWeight: 700, background: tonePill.bg, color: tonePill.color }}>{row.status}</span>
+                                        </td>
+                                        <td style={{ padding: '8px 8px', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                            {canCompose && (
+                                                <span style={{ display: 'inline-flex', gap: 4 }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onOpenComposer('edit', { ...row })}
+                                                        title="Edit post"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid #E1E4E8', background: '#fff', color: '#10575C', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
+                                                    >
+                                                        <i className="fas fa-pen" aria-hidden />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (window.confirm(`Delete "${row.post}"?`)) onDeletePost(row.id);
+                                                        }}
+                                                        title="Delete post"
+                                                        style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid #FECACA', background: '#fff', color: '#DC2626', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
+                                                    >
+                                                        <i className="fas fa-trash" aria-hidden />
+                                                    </button>
+                                                </span>
+                                            )}
                                         </td>
                                     </tr>
                                 );
@@ -1459,13 +1691,946 @@ const renderEnterpriseMarketing = (isMobile, mktState, data) => {
             </article>
         )}
 
-        <article style={{ ...card, padding: GAP.card, minHeight: isMobile ? 160 : 200, position: 'relative' }}>
-            <h2 style={sectionHeading}>Post creation</h2>
-            <p style={{ margin: '14px 0 0', fontSize: FONT_SIZE.sectionHeading, color: '#8B8F94', maxWidth: 480, lineHeight: 1.5 }}>
-                Compose, schedule, and publish across channels from one workspace. Connect accounts to enable live posting.
-            </p>
-        </article>
+        {selectedPost && (
+            <div
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => { if (e.target === e.currentTarget) onClosePost(); }}
+                style={{
+                    position: 'fixed', inset: 0, zIndex: 10050,
+                    background: 'rgba(15,23,42,0.55)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 16,
+                }}
+            >
+                <PostDetailDialog post={selectedPost} onClose={onClosePost} />
+            </div>
+        )}
+
+        {composer && (
+            <div
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => { if (e.target === e.currentTarget) onCloseComposer(); }}
+                style={{
+                    position: 'fixed', inset: 0, zIndex: 10050,
+                    background: 'rgba(15,23,42,0.45)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 16,
+                }}
+            >
+                <PostComposerForm
+                    initial={composer.draft}
+                    mode={composer.mode}
+                    statusOptions={statusOptions}
+                    accounts={composerAccounts}
+                    properties={composerProperties}
+                    onCancel={onCloseComposer}
+                    onSubmit={onSavePost}
+                />
+            </div>
+        )}
     </>
+    );
+};
+
+const PLATFORM_THEME = {
+    Facebook: { bg: '#1877F2', icon: 'fa-facebook-f' },
+    Instagram: { bg: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', icon: 'fa-instagram' },
+    LinkedIn: { bg: '#0A66C2', icon: 'fa-linkedin-in' },
+    Threads: { bg: '#000', icon: 'fa-at' },
+    'X (Twitter)': { bg: '#000', icon: 'fa-x-twitter' },
+    X: { bg: '#000', icon: 'fa-x-twitter' },
+    YouTube: { bg: '#FF0000', icon: 'fa-youtube' },
+    TikTok: { bg: '#000', icon: 'fa-tiktok' },
+    Pinterest: { bg: '#E60023', icon: 'fa-pinterest-p' },
+    Bluesky: { bg: '#0085FF', icon: 'fa-cloud' },
+    'Google Business': { bg: '#4285F4', icon: 'fa-google' },
+};
+
+const PostDetailDialog = ({ post, onClose }) => {
+    const [imgIdx, setImgIdx] = useState(0);
+    if (!post) return null;
+    const gallery = Array.isArray(post.gallery) && post.gallery.length ? post.gallery : (post.thumb ? [post.thumb] : []);
+    const theme = PLATFORM_THEME[post.platform] || { bg: '#10575C', icon: 'fa-share-nodes' };
+    const handle = post.account?.username
+        ? `@${post.account.username.replace(/^@/, '')}`
+        : '@yourbrand';
+    const stat = (label, value) => (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: '#64748B' }}>{label}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0F172A' }}>{value || '—'}</span>
+        </div>
+    );
+
+    return (
+        <div
+            style={{
+                width: '100%', maxWidth: 760, maxHeight: '90vh',
+                background: '#fff', borderRadius: 16, overflow: 'hidden',
+                boxShadow: '0 30px 60px -20px rgba(15,23,42,0.5)',
+                fontFamily: FONT,
+                display: 'flex', flexDirection: 'column',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: theme.bg, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+                        <i className={`fab ${theme.icon}`} aria-hidden />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {handle}
+                            {post.account?.isMock && (
+                                <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 10, background: '#FEF3C7', color: '#92400E', fontSize: 10, fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>Demo</span>
+                            )}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748B' }}>{post.platform} · {post.ageLabel || post.meta || 'Recent'}</div>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Close"
+                    style={{ width: 34, height: 34, border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontSize: 16, flexShrink: 0 }}
+                >
+                    <i className="fas fa-times" aria-hidden />
+                </button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+                {gallery.length > 0 && (
+                    <div style={{ position: 'relative', width: '100%', background: '#0F172A' }}>
+                        <img
+                            src={gallery[Math.min(imgIdx, gallery.length - 1)]}
+                            alt={post.title || 'Post image'}
+                            style={{ width: '100%', maxHeight: 380, objectFit: 'cover', display: 'block' }}
+                        />
+                        {gallery.length > 1 && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => setImgIdx((i) => (i - 1 + gallery.length) % gallery.length)}
+                                    aria-label="Previous image"
+                                    style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'rgba(15,23,42,0.55)', color: '#fff', cursor: 'pointer', fontSize: 14 }}
+                                >
+                                    <i className="fas fa-chevron-left" aria-hidden />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setImgIdx((i) => (i + 1) % gallery.length)}
+                                    aria-label="Next image"
+                                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'rgba(15,23,42,0.55)', color: '#fff', cursor: 'pointer', fontSize: 14 }}
+                                >
+                                    <i className="fas fa-chevron-right" aria-hidden />
+                                </button>
+                                <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6 }}>
+                                    {gallery.map((_, i) => (
+                                        <button
+                                            key={`dot-${i}`}
+                                            type="button"
+                                            aria-label={`Image ${i + 1}`}
+                                            onClick={() => setImgIdx(i)}
+                                            style={{ width: 7, height: 7, borderRadius: '50%', border: 'none', cursor: 'pointer', background: i === imgIdx ? '#fff' : 'rgba(255,255,255,0.5)' }}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+                <div style={{ padding: '18px 20px' }}>
+                    <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#0F172A', lineHeight: 1.35 }}>{post.title || 'Post'}</h3>
+                    {post.content && (
+                        <p style={{ margin: '0 0 12px', whiteSpace: 'pre-wrap', fontSize: 14, color: '#1F2937', lineHeight: 1.55 }}>{post.content}</p>
+                    )}
+                    {Array.isArray(post.hashtags) && post.hashtags.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                            {post.hashtags.map((t) => (
+                                <span key={t} style={{ fontSize: 13, color: '#1D4ED8', fontWeight: 600 }}>{t}</span>
+                            ))}
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '12px 0', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', color: '#475569', fontSize: 13 }}>
+                        <span><i className="fas fa-heart" style={{ color: '#EF4444', marginRight: 6 }} aria-hidden />{post.likesLabel || post.likes || 0} likes</span>
+                        <span><i className="fas fa-comment" style={{ color: '#3B82F6', marginRight: 6 }} aria-hidden />{post.commentsLabel || post.comments || 0} comments</span>
+                        <span><i className="fas fa-share" style={{ color: '#10B981', marginRight: 6 }} aria-hidden />{post.sharesLabel || post.shares || 0} shares</span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16, padding: '16px 0', borderBottom: Array.isArray(post.sampleComments) && post.sampleComments.length ? '1px solid #E2E8F0' : 'none' }}>
+                        {stat('Reach', post.reach)}
+                        {stat('Engagement', post.engagement)}
+                        {stat('Clicks', post.clicks)}
+                    </div>
+
+                    {Array.isArray(post.sampleComments) && post.sampleComments.length > 0 && (
+                        <div style={{ paddingTop: 14 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: '#64748B', marginBottom: 10 }}>Top comments</div>
+                            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 10 }}>
+                                {post.sampleComments.map((c, i) => (
+                                    <li key={`cmt-${i}`} style={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: 10, alignItems: 'flex-start' }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#E2E8F0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+                                            {(c.who || '?').split(/\s+/).map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 13, color: '#0F172A' }}>
+                                                <strong style={{ marginRight: 6 }}>{c.who || 'Anonymous'}</strong>
+                                                <span style={{ color: '#64748B' }}>{c.text}</span>
+                                            </div>
+                                            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{c.ago || ''}</div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    style={{ height: 36, padding: '0 16px', borderRadius: 18, border: '1px solid #CBD5E1', background: '#fff', color: '#0F172A', cursor: 'pointer', fontWeight: 600 }}
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ---------------------------------------------------------------------------
+// Per-platform live preview cards. Mirrors the look of each platform feed so
+// the user can see exactly how their post lands before scheduling. Ported
+// from the original AdminMarketing composer.
+// ---------------------------------------------------------------------------
+const InstagramPreviewCard = ({ username, caption, mediaUrl, locationLabel }) => (
+    <div style={{ width: '100%', maxWidth: 380, background: '#fff', border: '1px solid #dbdbdb', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)', flexShrink: 0 }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#262626' }}>{username || 'username'}</div>
+                {locationLabel && <div style={{ fontSize: 11, color: '#8e8e8e' }}>{locationLabel}</div>}
+            </div>
+            <i className="fas fa-ellipsis-h" style={{ color: '#262626' }} aria-hidden />
+        </div>
+        <div style={{ aspectRatio: '1', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {mediaUrl ? (
+                <img src={mediaUrl} alt="Post" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : (
+                <div style={{ color: '#666', fontSize: 13 }}>No image</div>
+            )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '6px 14px 4px' }}>
+            <i className="far fa-heart" style={{ fontSize: 20, color: '#262626' }} aria-hidden />
+            <i className="far fa-comment" style={{ fontSize: 20, color: '#262626' }} aria-hidden />
+            <i className="far fa-paper-plane" style={{ fontSize: 20, color: '#262626' }} aria-hidden />
+            <i className="far fa-bookmark" style={{ fontSize: 20, color: '#262626', marginLeft: 'auto' }} aria-hidden />
+        </div>
+        <div style={{ padding: '0 14px 12px', fontSize: 13, color: '#262626', wordBreak: 'break-word' }}>
+            <span style={{ fontWeight: 600, marginRight: 6 }}>{username || 'username'}</span>
+            <span style={{ whiteSpace: 'pre-wrap' }}>{caption || ''}</span>
+        </div>
+    </div>
+);
+
+const FacebookPreviewCard = ({ username, caption, mediaUrl, locationLabel }) => (
+    <div style={{ width: '100%', maxWidth: 420, background: '#fff', border: '1px solid #dadde1', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1877F2', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
+                {(username || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#050505' }}>{username || 'Page name'}</div>
+                <div style={{ fontSize: 12, color: '#65676B' }}>Just now {locationLabel ? `· ${locationLabel}` : ''} · 🌐</div>
+            </div>
+        </div>
+        <div style={{ padding: '0 12px 10px', fontSize: 14, color: '#050505', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}>{caption || ''}</div>
+        {mediaUrl && (
+            <div style={{ background: '#000' }}>
+                <img src={mediaUrl} alt="Post" style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'cover' }} />
+            </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-around', padding: '6px 0', borderTop: '1px solid #ced0d4', fontSize: 13, color: '#65676B' }}>
+            <span><i className="far fa-thumbs-up" aria-hidden /> Like</span>
+            <span><i className="far fa-comment" aria-hidden /> Comment</span>
+            <span><i className="fas fa-share" aria-hidden /> Share</span>
+        </div>
+    </div>
+);
+
+const XPreviewCard = ({ username, caption, mediaUrl }) => (
+    <div style={{ width: '100%', maxWidth: 420, background: '#fff', border: '1px solid #cfd9de', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: 12, padding: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#0f1419', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
+                {(username || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: '#0f1419' }}>{username || 'username'}</span>
+                    <span style={{ fontSize: 14, color: '#536471' }}>@{(username || 'handle').replace(/^@/, '')}</span>
+                </div>
+                <div style={{ fontSize: 14, color: '#0f1419', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.4 }}>{caption || ''}</div>
+                {mediaUrl && (
+                    <div style={{ marginTop: 10, borderRadius: 14, overflow: 'hidden', border: '1px solid #cfd9de' }}>
+                        <img src={mediaUrl} alt="Post" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
+                    </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, color: '#536471', fontSize: 13, maxWidth: 280 }}>
+                    <span><i className="far fa-comment" aria-hidden /> 0</span>
+                    <span><i className="fas fa-retweet" aria-hidden /> 0</span>
+                    <span><i className="far fa-heart" aria-hidden /> 0</span>
+                    <span><i className="fas fa-chart-bar" aria-hidden /> 0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+const LinkedInPreviewCard = ({ username, caption, mediaUrl }) => (
+    <div style={{ width: '100%', maxWidth: 420, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: 12, display: 'flex', gap: 10 }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#0A66C2', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
+                {(username || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#000' }}>{username || 'Name'}</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Real estate professional · 1st</div>
+                <div style={{ fontSize: 14, color: '#000', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.45 }}>{caption || ''}</div>
+            </div>
+        </div>
+        {mediaUrl && (
+            <div style={{ background: '#f3f2ef' }}>
+                <img src={mediaUrl} alt="Post" style={{ width: '100%', display: 'block', maxHeight: 380, objectFit: 'cover' }} />
+            </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-around', padding: '8px 0', borderTop: '1px solid #e0e0e0', fontSize: 13, color: '#666' }}>
+            <span><i className="far fa-thumbs-up" aria-hidden /> Like</span>
+            <span><i className="far fa-comment" aria-hidden /> Comment</span>
+            <span><i className="fas fa-retweet" aria-hidden /> Repost</span>
+            <span><i className="far fa-paper-plane" aria-hidden /> Send</span>
+        </div>
+    </div>
+);
+
+const ThreadsPreviewCard = ({ username, caption, mediaUrl }) => (
+    <div style={{ width: '100%', maxWidth: 420, background: '#fff', border: '1px solid #d3d3d3', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: 10, padding: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
+                {(username || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#000' }}>{username || 'username'}</div>
+                <div style={{ fontSize: 14, color: '#000', whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: 4 }}>{caption || ''}</div>
+                {mediaUrl && (
+                    <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+                        <img src={mediaUrl} alt="Post" style={{ width: '100%', display: 'block', maxHeight: 360, objectFit: 'cover' }} />
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
+const EmailPreviewCard = ({ title, caption, mediaUrl }) => (
+    <div style={{ width: '100%', maxWidth: 420, background: '#fff', border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ padding: 14, borderBottom: '1px solid #eee', background: '#f8fafc' }}>
+            <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 }}>Subject</div>
+            <div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a' }}>{title || '(No subject)'}</div>
+        </div>
+        {mediaUrl && (
+            <img src={mediaUrl} alt="" style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }} />
+        )}
+        <div style={{ padding: 16, fontSize: 14, color: '#333', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{caption || ''}</div>
+    </div>
+);
+
+const PLATFORM_PREVIEWS = [
+    { id: 'instagram', label: 'Instagram', icon: 'fa-instagram', component: InstagramPreviewCard, brandColor: '#E1306C' },
+    { id: 'facebook', label: 'Facebook', icon: 'fa-facebook-f', component: FacebookPreviewCard, brandColor: '#1877F2' },
+    { id: 'x', label: 'X', icon: 'fa-x-twitter', component: XPreviewCard, brandColor: '#000' },
+    { id: 'linkedin', label: 'LinkedIn', icon: 'fa-linkedin-in', component: LinkedInPreviewCard, brandColor: '#0A66C2' },
+    { id: 'threads', label: 'Threads', icon: 'fa-at', component: ThreadsPreviewCard, brandColor: '#000' },
+    { id: 'email', label: 'Email', icon: 'fa-envelope', component: EmailPreviewCard, brandColor: '#0f172a' },
+];
+
+const PLATFORM_DISPLAY_LABEL = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    x: 'X',
+    twitter: 'X',
+    linkedin: 'LinkedIn',
+    threads: 'Threads',
+    email: 'Email',
+    youtube: 'YouTube',
+    tiktok: 'TikTok',
+    pinterest: 'Pinterest',
+    bluesky: 'Bluesky',
+    google_business: 'Google Business',
+};
+
+// Maps the long day name used internally to the short label shown in the
+// scheduled-content table. Index 0 = Sunday to match JS Date.getDay().
+const COMPOSER_DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const COMPOSER_DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const formatComposerSchedule = (sched) => {
+    if (!sched) return null;
+    if (sched.type === 'once') {
+        if (!sched.at) return null;
+        try {
+            const d = new Date(sched.at);
+            if (!Number.isNaN(d.getTime())) return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+        } catch (_) {}
+        return null;
+    }
+    if (sched.type === 'recurring') {
+        const parts = [];
+        const indices = sched.everyDay ? [0, 1, 2, 3, 4, 5, 6] : (Array.isArray(sched.days) ? sched.days : []);
+        if (sched.everyDay) parts.push('Daily');
+        else if (indices.length) parts.push(indices.map((i) => COMPOSER_DAYS_SHORT[i]).join(', '));
+        if (sched.timesPerWeek && !sched.everyDay) parts.push(`${sched.timesPerWeek}×/wk`);
+        if (sched.time) parts.push(sched.time);
+        if (sched.startDate) parts.push(`from ${new Date(sched.startDate).toLocaleDateString()}`);
+        if (sched.endDate) parts.push(`to ${new Date(sched.endDate).toLocaleDateString()}`);
+        return parts.join(' · ') || 'Recurring';
+    }
+    return null;
+};
+
+// Pick a single weekday label (Mon/Tue/…) for the table's `day` column from
+// whatever schedule the user configured.
+const dayShortFromSchedule = (sched, fallback = 'Mon') => {
+    if (!sched) return fallback;
+    if (sched.type === 'once' && sched.at) {
+        try {
+            const d = new Date(sched.at);
+            if (!Number.isNaN(d.getTime())) return COMPOSER_DAYS_SHORT[d.getDay()];
+        } catch (_) {}
+    }
+    if (sched.type === 'recurring') {
+        if (sched.everyDay) return 'Daily';
+        if (Array.isArray(sched.days) && sched.days.length) return COMPOSER_DAYS_SHORT[sched.days[0]];
+    }
+    return fallback;
+};
+
+const PostComposerForm = ({ initial, mode, statusOptions, accounts, properties, onCancel, onSubmit }) => {
+    const isEdit = mode === 'edit';
+    // Try to back-derive previously selected platforms when editing.
+    const initialPlatformIds = (() => {
+        if (!initial?.platform) return [];
+        return String(initial.platform)
+            .split(/[+,]/)
+            .map((s) => s.trim().toLowerCase())
+            .map((s) => {
+                const match = PLATFORM_PREVIEWS.find((p) => p.id === s || p.label.toLowerCase() === s);
+                return match?.id || null;
+            })
+            .filter(Boolean);
+    })();
+
+    // Derive a sensible default schedule on first open: a one-time post a few
+    // hours from now on the day matching the row's `day` (so editing existing
+    // rows surfaces them on the right weekday by default).
+    const initialSchedule = (() => {
+        if (initial?.schedule && typeof initial.schedule === 'object') return initial.schedule;
+        const baseDayShort = initial?.day || 'Mon';
+        const dayIdx = Math.max(0, COMPOSER_DAYS_SHORT.indexOf(baseDayShort));
+        const now = new Date();
+        const target = new Date(now);
+        const diff = ((dayIdx - now.getDay()) + 7) % 7 || 0;
+        target.setDate(now.getDate() + diff);
+        target.setHours(9, 0, 0, 0);
+        const yyyy = target.getFullYear();
+        const mm = String(target.getMonth() + 1).padStart(2, '0');
+        const dd = String(target.getDate()).padStart(2, '0');
+        return {
+            type: 'once',
+            at: `${yyyy}-${mm}-${dd}T09:00`,
+            time: '09:00',
+            timesPerWeek: 3,
+            everyDay: false,
+            days: dayIdx >= 0 ? [dayIdx] : [1],
+            startDate: '',
+            endDate: '',
+        };
+    })();
+
+    const [draft, setDraft] = useState(() => {
+        const linkedProp = initial?.propertyId
+            ? (properties || []).find((p) => p.id === initial.propertyId)
+            : null;
+        return {
+            id: initial?.id || null,
+            title: initial?.title || (linkedProp ? linkedProp.title : ''),
+            content: initial?.content || initial?.post || '',
+            hashtags: initial?.hashtags || '',
+            mediaUrl: initial?.mediaUrl || (linkedProp ? (linkedProp.thumb || (linkedProp.gallery || [])[0] || '') : ''),
+            propertyId: initial?.propertyId || '',
+            propertyLabel: initial?.market || (linkedProp ? linkedProp.city : ''),
+            status: initial?.status || 'Scheduled',
+            schedule: initialSchedule,
+        };
+    });
+
+    const setSchedule = (patch) => setDraft((d) => ({ ...d, schedule: { ...d.schedule, ...patch } }));
+    const toggleScheduleDay = (idx) => setDraft((d) => {
+        const days = d.schedule?.days || [];
+        const next = days.includes(idx) ? days.filter((x) => x !== idx) : [...days, idx].sort((a, b) => a - b);
+        return { ...d, schedule: { ...d.schedule, days: next } };
+    });
+
+    // Default selected platforms: previously-saved selection if editing,
+    // otherwise the platforms with at least one connected account, with
+    // Instagram + Facebook as a sensible fallback for fresh users.
+    const accountPlatformIds = Array.from(new Set((accounts || [])
+        .map((a) => String(a.platform || '').toLowerCase())
+        .filter(Boolean)));
+    const defaultPlatformIds = (() => {
+        if (initialPlatformIds.length) return initialPlatformIds;
+        const known = accountPlatformIds.filter((p) => PLATFORM_PREVIEWS.some((x) => x.id === p));
+        if (known.length) return known.slice(0, 4);
+        return ['instagram', 'facebook'];
+    })();
+    const [selectedPlatforms, setSelectedPlatforms] = useState(defaultPlatformIds);
+    const [activePreviewTab, setActivePreviewTab] = useState(defaultPlatformIds[0] || 'instagram');
+
+    const togglePlatform = (id) => {
+        setSelectedPlatforms((prev) => {
+            const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+            if (next.length && !next.includes(activePreviewTab)) setActivePreviewTab(next[0]);
+            return next;
+        });
+    };
+
+    const handlePropertyChange = (id) => {
+        const prop = properties.find((p) => p.id === id);
+        setDraft((d) => ({
+            ...d,
+            propertyId: id,
+            propertyLabel: prop ? (prop.city || prop.title || '') : '',
+            mediaUrl: prop && !d.mediaUrl ? (prop.thumb || (prop.gallery || [])[0] || '') : d.mediaUrl,
+            title: prop && !d.title ? prop.title : d.title,
+        }));
+    };
+
+    const captionForPreview = [draft.content, draft.hashtags].filter((s) => s && s.trim()).join('\n\n');
+    const previewUsername = (() => {
+        const acct = (accounts || [])[0];
+        if (acct?.username) return acct.username;
+        return 'yourbrand';
+    })();
+    const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: '#64748B', marginBottom: 6 };
+    const inputStyle = { width: '100%', boxSizing: 'border-box', height: 38, padding: '0 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontFamily: FONT, fontSize: 14, color: '#0F172A', background: '#fff' };
+    const textareaStyle = { ...inputStyle, height: 'auto', padding: '10px 12px', minHeight: 96, resize: 'vertical', lineHeight: 1.5 };
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (!draft.content.trim() && !draft.title.trim()) return;
+        // Pack rich draft back into the table-row shape the marketing tab
+        // already understands, while preserving the rich fields so an edit
+        // round-trip restores everything.
+        const platformLabels = selectedPlatforms
+            .map((id) => PLATFORM_PREVIEWS.find((p) => p.id === id)?.label || id)
+            .join(' + ') || 'Facebook';
+        const headline = (draft.title || draft.content || '').trim();
+        const post = headline.length > 80 ? `${headline.slice(0, 77)}…` : headline;
+        // Normalize schedule: drop unused branch's fields so the row stays tidy.
+        const sched = draft.schedule || { type: 'once' };
+        const cleanSchedule = sched.type === 'once'
+            ? { type: 'once', at: sched.at || '' }
+            : {
+                type: 'recurring',
+                everyDay: !!sched.everyDay,
+                days: sched.everyDay ? [0, 1, 2, 3, 4, 5, 6] : (sched.days || []),
+                timesPerWeek: sched.timesPerWeek || 1,
+                time: sched.time || '09:00',
+                startDate: sched.startDate || '',
+                endDate: sched.endDate || '',
+            };
+        const dayShort = dayShortFromSchedule(cleanSchedule, 'Mon');
+        const scheduleLabel = formatComposerSchedule(cleanSchedule);
+        onSubmit({
+            id: draft.id,
+            day: dayShort,
+            post,
+            market: draft.propertyLabel || '—',
+            platform: platformLabels,
+            status: draft.status,
+            // Rich fields preserved on the row.
+            title: draft.title,
+            content: draft.content,
+            hashtags: draft.hashtags,
+            mediaUrl: draft.mediaUrl,
+            propertyId: draft.propertyId,
+            platformIds: selectedPlatforms,
+            schedule: cleanSchedule,
+            scheduleLabel,
+        });
+    };
+
+    const ActivePreview = (PLATFORM_PREVIEWS.find((p) => p.id === activePreviewTab) || PLATFORM_PREVIEWS[0]).component;
+
+    return (
+        <form
+            onSubmit={submit}
+            autoComplete="off"
+            data-form-type="other"
+            data-lpignore="true"
+            data-1p-ignore="true"
+            style={{
+                width: '100%', maxWidth: 1080, maxHeight: '92vh', background: '#fff', borderRadius: 16,
+                boxShadow: '0 30px 60px -20px rgba(15,23,42,0.4)',
+                fontFamily: FONT,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid #E2E8F0' }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0F172A' }}>
+                    {isEdit ? 'Edit post' : 'New post'}
+                </h3>
+                <button type="button" onClick={onCancel} aria-label="Close" style={{ width: 32, height: 32, border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontSize: 16 }}>
+                    <i className="fas fa-times" aria-hidden />
+                </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 0 }}>
+                {/* Left: form */}
+                <div style={{ padding: 22, display: 'grid', gap: 14, borderRight: '1px solid #E2E8F0', minWidth: 0 }}>
+                    <div>
+                        <label style={labelStyle}>Title <span style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'none' }}>(optional)</span></label>
+                        <input
+                            type="text"
+                            name="ipmComposerTitle"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            value={draft.title}
+                            onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+                            placeholder="e.g. Just listed in Sandton"
+                            style={inputStyle}
+                        />
+                    </div>
+                    <div>
+                        <label style={labelStyle}>Caption</label>
+                        <textarea
+                            name="ipmComposerCaption"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            value={draft.content}
+                            onChange={(e) => setDraft((d) => ({ ...d, content: e.target.value }))}
+                            placeholder="What do you want to share?"
+                            style={textareaStyle}
+                            autoFocus
+                        />
+                    </div>
+                    <div>
+                        <label style={labelStyle}>Hashtags</label>
+                        <input
+                            type="text"
+                            name="ipmComposerHashtags"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            value={draft.hashtags}
+                            onChange={(e) => setDraft((d) => ({ ...d, hashtags: e.target.value }))}
+                            placeholder="#luxury #realestate #property"
+                            style={inputStyle}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>Link a property <span style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'none' }}>(optional)</span></label>
+                        <select
+                            name="ipmComposerProperty"
+                            autoComplete="off"
+                            value={draft.propertyId || ''}
+                            onChange={(e) => handlePropertyChange(e.target.value)}
+                            style={inputStyle}
+                        >
+                            <option value="">None</option>
+                            {properties.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                    {p.title}{p.city ? ` — ${p.city}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>Media URL <span style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'none' }}>(image)</span></label>
+                        <input
+                            type="url"
+                            name="ipmComposerMediaUrl"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            value={draft.mediaUrl}
+                            onChange={(e) => setDraft((d) => ({ ...d, mediaUrl: e.target.value }))}
+                            placeholder="https://… or pick a property above"
+                            style={inputStyle}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={labelStyle}>Post to</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {PLATFORM_PREVIEWS.map((p) => {
+                                const on = selectedPlatforms.includes(p.id);
+                                return (
+                                    <button
+                                        type="button"
+                                        key={p.id}
+                                        onClick={() => togglePlatform(p.id)}
+                                        style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                                            padding: '7px 12px', borderRadius: 18,
+                                            border: `1.5px solid ${on ? p.brandColor : '#CBD5E1'}`,
+                                            background: on ? `${p.brandColor}10` : '#fff',
+                                            color: on ? p.brandColor : '#475569',
+                                            fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                                        }}
+                                    >
+                                        <i className={`fab ${p.icon}`} aria-hidden style={{ fontSize: 13 }} />
+                                        {p.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 14, display: 'grid', gap: 12 }}>
+                        <label style={labelStyle}>Schedule</label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            {[{ id: 'once', label: 'One-time' }, { id: 'recurring', label: 'Recurring' }].map((opt) => {
+                                const on = draft.schedule.type === opt.id;
+                                return (
+                                    <button
+                                        type="button"
+                                        key={opt.id}
+                                        onClick={() => setSchedule({ type: opt.id })}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            borderRadius: 10,
+                                            border: `1.5px solid ${on ? '#10575C' : '#CBD5E1'}`,
+                                            background: on ? '#E0F2F1' : '#fff',
+                                            color: on ? '#10575C' : '#475569',
+                                            fontWeight: 600,
+                                            fontSize: 13,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <i className={on ? 'fas fa-check-circle' : 'far fa-circle'} style={{ marginRight: 6 }} aria-hidden />
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {draft.schedule.type === 'once' ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <div>
+                                    <label style={labelStyle}>Date & time</label>
+                                    <input
+                                        type="datetime-local"
+                                        name="ipmComposerScheduleAt"
+                                        autoComplete="off"
+                                        value={draft.schedule.at || ''}
+                                        onChange={(e) => setSchedule({ at: e.target.value })}
+                                        style={inputStyle}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Status</label>
+                                    <select name="ipmComposerStatus" autoComplete="off" value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))} style={inputStyle}>
+                                        {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: 12 }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0F172A', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!draft.schedule.everyDay}
+                                        onChange={(e) => setSchedule({ everyDay: e.target.checked })}
+                                    />
+                                    Post every day
+                                </label>
+                                {!draft.schedule.everyDay && (
+                                    <div>
+                                        <div style={{ ...labelStyle, marginBottom: 6 }}>Days of the week</div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                            {COMPOSER_DAYS_FULL.map((d, i) => {
+                                                const on = (draft.schedule.days || []).includes(i);
+                                                return (
+                                                    <button
+                                                        key={d}
+                                                        type="button"
+                                                        onClick={() => toggleScheduleDay(i)}
+                                                        style={{
+                                                            width: 36, height: 36, borderRadius: '50%',
+                                                            border: `1.5px solid ${on ? '#10575C' : '#CBD5E1'}`,
+                                                            background: on ? '#10575C' : '#fff',
+                                                            color: on ? '#fff' : '#475569',
+                                                            fontWeight: 700, fontSize: 12, cursor: 'pointer',
+                                                        }}
+                                                    >
+                                                        {COMPOSER_DAYS_SHORT[i].charAt(0)}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div>
+                                        <label style={labelStyle}>Times per week</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={7}
+                                            name="ipmComposerTimesPerWeek"
+                                            autoComplete="off"
+                                            value={draft.schedule.timesPerWeek || 1}
+                                            onChange={(e) => setSchedule({ timesPerWeek: Math.max(1, Math.min(7, Number(e.target.value) || 1)) })}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Time</label>
+                                        <input
+                                            type="time"
+                                            name="ipmComposerTime"
+                                            autoComplete="off"
+                                            value={draft.schedule.time || '09:00'}
+                                            onChange={(e) => setSchedule({ time: e.target.value })}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div>
+                                        <label style={labelStyle}>Start date</label>
+                                        <input
+                                            type="date"
+                                            name="ipmComposerStartDate"
+                                            autoComplete="off"
+                                            value={draft.schedule.startDate || ''}
+                                            onChange={(e) => setSchedule({ startDate: e.target.value })}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>End date <span style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'none' }}>(optional)</span></label>
+                                        <input
+                                            type="date"
+                                            name="ipmComposerEndDate"
+                                            autoComplete="off"
+                                            value={draft.schedule.endDate || ''}
+                                            onChange={(e) => setSchedule({ endDate: e.target.value })}
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Status</label>
+                                    <select name="ipmComposerStatus" autoComplete="off" value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))} style={inputStyle}>
+                                        {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {(() => {
+                            const label = formatComposerSchedule(draft.schedule);
+                            return label ? (
+                                <div style={{ fontSize: 12, color: '#10575C', background: '#E0F2F1', padding: '8px 10px', borderRadius: 8, fontWeight: 600 }}>
+                                    <i className="far fa-clock" style={{ marginRight: 6 }} aria-hidden />
+                                    {label}
+                                </div>
+                            ) : null;
+                        })()}
+                    </div>
+                </div>
+
+                {/* Right: preview */}
+                <div style={{ padding: 22, background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+                    <div>
+                        <div style={{ ...labelStyle, marginBottom: 8 }}>Preview</div>
+                        <p style={{ margin: 0, fontSize: 12, color: '#64748B' }}>How your post will appear on each selected platform.</p>
+                    </div>
+                    {selectedPlatforms.length === 0 ? (
+                        <div style={{ padding: 24, background: '#fff', border: '1px dashed #CBD5E1', borderRadius: 12, color: '#64748B', fontSize: 13, textAlign: 'center' }}>
+                            Select at least one platform on the left to see a preview.
+                        </div>
+                    ) : (
+                        <>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {selectedPlatforms.map((pid) => {
+                                    const p = PLATFORM_PREVIEWS.find((x) => x.id === pid);
+                                    if (!p) return null;
+                                    const on = activePreviewTab === pid;
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={pid}
+                                            onClick={() => setActivePreviewTab(pid)}
+                                            style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                                                padding: '6px 12px', borderRadius: 14,
+                                                border: 'none', cursor: 'pointer',
+                                                background: on ? p.brandColor : '#fff',
+                                                color: on ? '#fff' : '#0F172A',
+                                                fontWeight: 600, fontSize: 12,
+                                                boxShadow: on ? 'none' : 'inset 0 0 0 1px #CBD5E1',
+                                            }}
+                                        >
+                                            <i className={`fab ${p.icon}`} aria-hidden style={{ fontSize: 12 }} />
+                                            {p.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                <ActivePreview
+                                    username={previewUsername}
+                                    title={draft.title}
+                                    caption={captionForPreview}
+                                    mediaUrl={draft.mediaUrl || null}
+                                    locationLabel={draft.propertyLabel || undefined}
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '14px 22px', borderTop: '1px solid #E2E8F0', background: '#fff' }}>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    style={{ height: 38, padding: '0 16px', borderRadius: 19, border: '1px solid #CBD5E1', background: '#fff', color: '#0F172A', cursor: 'pointer', fontWeight: 600 }}
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    disabled={!draft.content.trim() && !draft.title.trim()}
+                    style={{
+                        height: 38, padding: '0 18px', borderRadius: 19, border: 'none',
+                        background: (draft.content.trim() || draft.title.trim()) ? '#10575C' : '#94A3B8',
+                        color: '#fff',
+                        cursor: (draft.content.trim() || draft.title.trim()) ? 'pointer' : 'not-allowed',
+                        fontWeight: 700,
+                    }}
+                >
+                    {isEdit ? 'Save changes' : 'Add post'}
+                </button>
+            </div>
+        </form>
     );
 };
 
@@ -1603,11 +2768,40 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
     const needsData = ['dashboard', 'royalty', 'country', 'franchise', 'branch'];
     const [dashLoading, setDashLoading] = useState(needsData.includes(activeTab));
 
-    const [mktAccounts, setMktAccounts] = useState([]);
-    const [mktNetworks, setMktNetworks] = useState([]);
+    // Cache key for the marketing tab — scoped by user when available so a
+    // demo-mode switch doesn't bleed cached accounts across users.
+    const mktCacheKey = useMemo(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem('user') || '{}');
+            return u?._id ? String(u._id) : 'enterprise-marketing';
+        } catch (_) { return 'enterprise-marketing'; }
+    }, []);
+    const mktCacheBoot = useMemo(() => getMarketingCache(mktCacheKey), [mktCacheKey]);
+
+    const [mktAccounts, setMktAccounts] = useState(mktCacheBoot?.accounts || []);
+    const [mktNetworks, setMktNetworks] = useState(mktCacheBoot?.networks || []);
+    const [mktSummary, setMktSummary] = useState(mktCacheBoot?.summary || null);
+    // User-editable scheduled content (seeded from the server but kept in
+    // localStorage so user edits/adds/deletes persist across refreshes).
+    const [mktScheduled, setMktScheduled] = useState(null);
+    // Compose / edit dialog state. null = closed, otherwise { mode, draft }.
+    const [mktComposer, setMktComposer] = useState(null);
+    // Recent-post detail dialog (null = closed, otherwise the post object).
+    const [mktSelectedPost, setMktSelectedPost] = useState(null);
     const [mktShowPicker, setMktShowPicker] = useState(false);
     const [mktConnecting, setMktConnecting] = useState(null);
-    const [mktLoading, setMktLoading] = useState(activeTab === 'marketing');
+    // Banner under "Manage Accounts" with sync feedback (e.g. "Looking for new
+    // accounts…", "Connected 1 new Instagram account", "No accounts came
+    // through — make sure you finished the connection in the popup.").
+    const [mktSyncMessage, setMktSyncMessage] = useState(null);
+    const [mktSyncBusy, setMktSyncBusy] = useState(false);
+    // Only show the full-page spinner when we have nothing cached. With cache
+    // we render immediately and revalidate in the background.
+    const [mktLoading, setMktLoading] = useState(activeTab === 'marketing' && !mktCacheBoot);
+    const mktPopupRef = useRef(null);
+    const mktPollRef = useRef(null);
+    const mktAccountsRef = useRef(mktAccounts);
+    useEffect(() => { mktAccountsRef.current = mktAccounts; }, [mktAccounts]);
 
     useEffect(() => {
         // In demo mode (admin previewing the enterprise dashboard via the
@@ -1643,18 +2837,35 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
             setMktLoading(false);
             return undefined;
         }
+        // Cache-first: render whatever we have immediately, refresh in the
+        // background. Only show the spinner when the cache is empty AND the
+        // store wasn't invalidated since last load.
+        const cached = getMarketingCache(mktCacheKey);
+        const invalidatedFor = takeMarketingInvalidated();
+        const cacheUsable = cached && (!invalidatedFor || invalidatedFor !== mktCacheKey);
+        if (cacheUsable) {
+            setMktAccounts(cached.accounts || []);
+            setMktNetworks(cached.networks || []);
+            setMktSummary(cached.summary || null);
+            setMktLoading(false);
+        } else {
+            setMktLoading(true);
+        }
         let cancelled = false;
-        setMktLoading(true);
         (async () => {
             try {
                 const [acctRes, netRes] = await Promise.all([
                     api.get('/api/enterprise/marketing?action=accounts'),
                     api.get('/api/enterprise/marketing?action=networks'),
                 ]);
-                if (!cancelled) {
-                    setMktAccounts(acctRes.data?.connectedAccounts || []);
-                    setMktNetworks(netRes.data?.networks || []);
-                }
+                if (cancelled) return;
+                const accounts = acctRes.data?.connectedAccounts || [];
+                const networks = netRes.data?.networks || [];
+                const summary = acctRes.data?.marketingSummary || null;
+                setMktAccounts(accounts);
+                setMktNetworks(networks);
+                setMktSummary(summary);
+                setMarketingCache(mktCacheKey, { accounts, networks, summary });
             } catch (err) {
                 console.error('Marketing data fetch error:', err);
             } finally {
@@ -1662,37 +2873,277 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
             }
         })();
         return () => { cancelled = true; };
-    }, [activeTab]);
+    }, [activeTab, mktCacheKey]);
+
+    // If we land on /marketing?outstand=connected (e.g. a full-page redirect
+    // fallback when the OAuth flow wasn't opened in a popup), sync the
+    // connected accounts and clean the URL.
+    useEffect(() => {
+        if (activeTab !== 'marketing') return;
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('outstand') !== 'connected') return;
+        (async () => {
+            try {
+                const syncRes = await api.post('/api/enterprise/marketing', { action: 'sync-accounts' });
+                const accounts = syncRes.data?.connectedAccounts || [];
+                const summary = syncRes.data?.marketingSummary || null;
+                setMktAccounts(accounts);
+                setMktSummary(summary);
+                const prev = getMarketingCache(mktCacheKey) || {};
+                setMarketingCache(mktCacheKey, { accounts, networks: prev.networks || [], summary });
+            } catch (e) { console.error('Sync error:', e); }
+            params.delete('outstand');
+            const qs = params.toString();
+            window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+        })();
+    }, [activeTab, mktCacheKey]);
+
+    const syncMarketingAccounts = useCallback(async () => {
+        try {
+            const syncRes = await api.post('/api/enterprise/marketing', { action: 'sync-accounts' });
+            const accounts = syncRes.data?.connectedAccounts || [];
+            const summary = syncRes.data?.marketingSummary || null;
+            setMktAccounts(accounts);
+            setMktSummary(summary);
+            const prev = getMarketingCache(mktCacheKey) || {};
+            setMarketingCache(mktCacheKey, { accounts, networks: prev.networks || [], summary });
+            return accounts;
+        } catch (e) {
+            console.error('Sync error:', e);
+            return null;
+        }
+    }, [mktCacheKey]);
+
+    /**
+     * Outstand sometimes finishes the OAuth flow on its side a few seconds
+     * after the popup closes (especially for IG/FB pages that need to be
+     * resolved through the Meta Graph API). A single sync immediately on
+     * close therefore often misses the new account.
+     *
+     * This helper:
+     *   1. takes a snapshot of the current connected-account ids,
+     *   2. polls /sync-accounts up to ~25s with backoff,
+     *   3. surfaces a status banner so the user knows what happened, and
+     *   4. stops as soon as a new account appears.
+     */
+    const runResilientSync = useCallback(async ({ platform, expectNew }) => {
+        const beforeIds = new Set((mktAccountsRef.current || []).map((a) => a.outstandAccountId));
+        const platformLabel = platform ? (PLATFORM_META[platform]?.label || platform) : 'account';
+        const delaysMs = expectNew ? [0, 2500, 5000, 8000, 12000] : [0];
+        setMktSyncBusy(true);
+        if (expectNew) {
+            setMktSyncMessage({ tone: 'info', text: `Looking for the new ${platformLabel} connection…` });
+        }
+        let foundNew = null;
+        for (let i = 0; i < delaysMs.length; i += 1) {
+            if (delaysMs[i] > 0) {
+                await new Promise((resolve) => setTimeout(resolve, delaysMs[i]));
+            }
+            const accounts = await syncMarketingAccounts();
+            if (!accounts) continue;
+            const added = accounts.filter((a) => !beforeIds.has(a.outstandAccountId));
+            if (added.length > 0) { foundNew = added; break; }
+        }
+        setMktSyncBusy(false);
+        if (foundNew && foundNew.length > 0) {
+            const names = foundNew.map((a) => `${PLATFORM_META[a.platform]?.label || a.platform}${a.username ? ` (${a.username})` : ''}`).join(', ');
+            setMktSyncMessage({ tone: 'success', text: `Connected ${foundNew.length === 1 ? 'account' : `${foundNew.length} accounts`}: ${names}.` });
+        } else if (expectNew) {
+            setMktSyncMessage({
+                tone: 'warning',
+                text: `We couldn't find a new ${platformLabel} connection. Make sure you finished the OAuth approval inside the popup before closing it, then click Refresh to try again.`,
+            });
+        } else {
+            setMktSyncMessage({ tone: 'info', text: 'Connected accounts refreshed.' });
+        }
+    }, [syncMarketingAccounts]);
+
+    const handleManualSync = useCallback(() => runResilientSync({ platform: null, expectNew: false }), [runResilientSync]);
+
+    // Whenever a fresh summary lands (or the week changes), seed the local
+    // scheduled-content list. We key the localStorage entry by user + week
+    // so edits roll forward week-to-week and don't bleed across users.
+    const userIdForKeys = useMemo(() => {
+        try { return JSON.parse(localStorage.getItem('user') || '{}')?._id || ''; }
+        catch (_) { return ''; }
+    }, []);
+    // Bump this version when the seeded scheduled-row shape changes so
+    // users pick up the new rich fields without manually clearing storage.
+    const SCHEDULED_STORAGE_VERSION = 'v2';
+    useEffect(() => {
+        const cal = mktSummary?.contentCalendar;
+        const weekKey = mktSummary?.calendarLabel || '';
+        if (!Array.isArray(cal) || !weekKey) {
+            setMktScheduled(null);
+            return;
+        }
+        const storageKey = `mkt_scheduled_${SCHEDULED_STORAGE_VERSION}_${userIdForKeys}_${weekKey}`;
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch (_) {}
+        if (Array.isArray(saved) && saved.length) {
+            setMktScheduled(saved);
+            return;
+        }
+        const seeded = cal.map((row, idx) => ({
+            ...row,
+            id: row.id || `srv_${idx}_${row.day || 'x'}`,
+        }));
+        setMktScheduled(seeded);
+        try { localStorage.setItem(storageKey, JSON.stringify(seeded)); } catch (_) {}
+    }, [mktSummary?.calendarLabel, mktSummary?.contentCalendar, userIdForKeys]);
+
+    const persistScheduled = useCallback((rows) => {
+        const weekKey = mktSummary?.calendarLabel;
+        if (!weekKey) return;
+        const storageKey = `mkt_scheduled_${SCHEDULED_STORAGE_VERSION}_${userIdForKeys}_${weekKey}`;
+        try { localStorage.setItem(storageKey, JSON.stringify(rows)); } catch (_) {}
+    }, [mktSummary?.calendarLabel, userIdForKeys]);
+
+    const handleSavePost = useCallback((draft) => {
+        if (!draft || (!draft.post && !draft.title && !draft.content)) return;
+        const safe = {
+            day: draft.day || 'Mon',
+            post: String(draft.post || draft.title || draft.content || '').trim(),
+            market: String(draft.market || '').trim() || '—',
+            platform: String(draft.platform || 'Facebook').trim(),
+            status: draft.status || 'Scheduled',
+            tone: draft.status === 'Posted' ? 'muted' : (draft.status === 'Draft' || draft.status === 'Approval' ? 'warn' : 'ok'),
+            // Rich fields from the composer — kept on the row so Edit can
+            // round-trip caption/media/property selection back into the form.
+            title: draft.title || '',
+            content: draft.content || '',
+            hashtags: draft.hashtags || '',
+            mediaUrl: draft.mediaUrl || '',
+            propertyId: draft.propertyId || '',
+            platformIds: Array.isArray(draft.platformIds) ? draft.platformIds : [],
+            schedule: draft.schedule || null,
+            scheduleLabel: draft.scheduleLabel || '',
+        };
+        setMktScheduled((prev) => {
+            const list = prev || [];
+            let next;
+            if (draft.id) {
+                next = list.map((r) => r.id === draft.id ? { ...r, ...safe, id: draft.id } : r);
+            } else {
+                next = [...list, { ...safe, id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` }];
+            }
+            persistScheduled(next);
+            return next;
+        });
+        setMktComposer(null);
+    }, [persistScheduled]);
+
+    const handleDeletePost = useCallback((id) => {
+        setMktScheduled((prev) => {
+            const next = (prev || []).filter((r) => r.id !== id);
+            persistScheduled(next);
+            return next;
+        });
+    }, [persistScheduled]);
+
+    /**
+     * Adds a synthetic "connected" account on the user's profile without
+     * doing a real OAuth handshake. Useful for demos and for environments
+     * where the Outstand / Meta credentials aren't set up yet — the rest
+     * of the marketing dashboard (KPIs, calendar, recent posts, composer)
+     * can then be exercised end-to-end.
+     */
+    const handleMockConnect = useCallback(async (platform) => {
+        setMktSyncMessage(null);
+        setMktSyncBusy(true);
+        try {
+            const res = await api.post('/api/enterprise/marketing', { action: 'mock-connect', platform });
+            const accounts = res.data?.connectedAccounts || [];
+            const summary = res.data?.marketingSummary || null;
+            setMktAccounts(accounts);
+            setMktSummary(summary);
+            const prev = getMarketingCache(mktCacheKey) || {};
+            setMarketingCache(mktCacheKey, { accounts, networks: prev.networks || [], summary });
+            const platformLabel = PLATFORM_META[platform]?.label || platform;
+            setMktSyncMessage({ tone: 'success', text: `Added a demo ${platformLabel} account and seeded the dashboard with sample posts based on your listings. Disconnect any time.` });
+        } catch (err) {
+            setMktSyncMessage({ tone: 'warning', text: err.response?.data?.message || 'Could not add a demo account.' });
+        } finally {
+            setMktSyncBusy(false);
+        }
+    }, [mktCacheKey]);
+
+    // Listen for the popup's "outstand:connected" postMessage (sent from
+    // OutstandOAuthCallback after successful finalize). When received, close
+    // the popup if still open and refresh the connected-accounts list.
+    // NOTE: must be declared *after* runResilientSync to avoid a TDZ
+    // ReferenceError on first render (the deps array is read at call time).
+    useEffect(() => {
+        const onMessage = async (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type !== 'outstand:connected') return;
+            if (mktPollRef.current) {
+                clearInterval(mktPollRef.current);
+                mktPollRef.current = null;
+            }
+            const popup = mktPopupRef.current;
+            if (popup && !popup.closed) {
+                try { popup.close(); } catch (_) { /* ignore */ }
+            }
+            mktPopupRef.current = null;
+            const platform = mktConnecting;
+            setMktConnecting(null);
+            await runResilientSync({ platform, expectNew: true });
+        };
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
+    }, [runResilientSync, mktConnecting]);
 
     const handleConnectPlatform = useCallback(async (platform) => {
         setMktConnecting(platform);
+        setMktSyncMessage(null);
         try {
-            const currentUrl = window.location.href.split('?')[0];
-            const redirectUri = currentUrl + '?oauth_callback=1';
+            // Outstand redirects to its registered callback path which our
+            // OutstandOAuthCallback page handles (calls /finalize, then posts a
+            // message back to this window). Pass that page as the redirect URI
+            // so Outstand always lands the popup somewhere we control.
+            const redirectUri = `${window.location.origin}/outstand/oauth-callback`;
             const res = await api.post('/api/enterprise/marketing', { action: 'auth-url', platform, redirectUri });
             if (res.data?.authUrl) {
+                // Diagnostic: log the URL we open. If this points to instagram.com
+                // directly (instead of facebook.com/v.../dialog/oauth or similar),
+                // Outstand's Meta app is not configured to issue an OAuth consent
+                // and the connection cannot succeed without fixing it on their side.
+                console.info('[outstand] opening auth URL for', platform, '→', res.data.authUrl);
                 const w = 600, h = 700;
                 const left = window.screenX + (window.outerWidth - w) / 2;
                 const top = window.screenY + (window.outerHeight - h) / 2;
                 const popup = window.open(res.data.authUrl, 'outstand_oauth', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`);
-                const pollTimer = setInterval(async () => {
+                mktPopupRef.current = popup;
+                if (mktPollRef.current) clearInterval(mktPollRef.current);
+                mktPollRef.current = setInterval(async () => {
                     try {
                         if (!popup || popup.closed) {
-                            clearInterval(pollTimer);
+                            clearInterval(mktPollRef.current);
+                            mktPollRef.current = null;
+                            mktPopupRef.current = null;
                             setMktConnecting(null);
-                            try {
-                                const syncRes = await api.post('/api/enterprise/marketing', { action: 'sync-accounts' });
-                                setMktAccounts(syncRes.data?.connectedAccounts || []);
-                            } catch (e) { console.error('Sync error:', e); }
+                            // Popup closed (whether the user finished OAuth or
+                            // just dismissed it). Aggressively retry sync — if
+                            // they did complete the flow, Outstand may still be
+                            // resolving the page list.
+                            await runResilientSync({ platform, expectNew: true });
                             return;
                         }
-                        const popupUrl = popup.location.href;
-                        if (popupUrl && popupUrl.includes('oauth_callback=1')) {
-                            popup.close();
-                            clearInterval(pollTimer);
+                        // Same-origin URL checks: if the popup ends up on our
+                        // marketing page (e.g. ?outstand=connected) or carries
+                        // the legacy oauth_callback=1 query, treat it as done.
+                        let popupUrl = '';
+                        try { popupUrl = popup.location.href; } catch (_) { return; }
+                        if (!popupUrl) return;
+                        if (popupUrl.includes('oauth_callback=1') || popupUrl.includes('outstand=connected')) {
+                            try { popup.close(); } catch (_) { /* ignore */ }
+                            clearInterval(mktPollRef.current);
+                            mktPollRef.current = null;
+                            mktPopupRef.current = null;
                             setMktConnecting(null);
-                            const syncRes = await api.post('/api/enterprise/marketing', { action: 'sync-accounts' });
-                            setMktAccounts(syncRes.data?.connectedAccounts || []);
+                            await runResilientSync({ platform, expectNew: true });
                         }
                     } catch (_) { /* cross-origin - ignore until redirect back */ }
                 }, 500);
@@ -1700,13 +3151,19 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
         } catch (err) {
             console.error('Connect platform error:', err);
             setMktConnecting(null);
+            setMktSyncMessage({ tone: 'warning', text: err.response?.data?.message || 'Could not start the connection. Please try again.' });
         }
-    }, []);
+    }, [runResilientSync]);
 
     const handleDisconnect = useCallback(async (outstandAccountId) => {
         try {
             const res = await api.post('/api/enterprise/marketing', { action: 'disconnect', outstandAccountId });
-            setMktAccounts(res.data?.connectedAccounts || []);
+            const accounts = res.data?.connectedAccounts || [];
+            const summary = res.data?.marketingSummary || null;
+            setMktAccounts(accounts);
+            setMktSummary(summary);
+            const prev = getMarketingCache(mktCacheKey) || {};
+            setMarketingCache(mktCacheKey, { accounts, networks: prev.networks || [], summary });
         } catch (err) {
             console.error('Disconnect error:', err);
         }
@@ -1742,6 +3199,21 @@ const EnterpriseDashboard = ({ activeTab = 'dashboard' }) => {
                                                 onConnectPlatform: handleConnectPlatform,
                                                 onDisconnect: handleDisconnect,
                                                 connectingPlatform: mktConnecting,
+                                                onSyncAccounts: handleManualSync,
+                                                onMockConnect: handleMockConnect,
+                                                syncBusy: mktSyncBusy,
+                                                syncMessage: mktSyncMessage,
+                                                onDismissSyncMessage: () => setMktSyncMessage(null),
+                                                summary: mktSummary,
+                                                scheduledRows: mktScheduled,
+                                                composer: mktComposer,
+                                                onOpenComposer: (mode, row) => setMktComposer({ mode: mode || 'create', draft: row || { day: 'Mon', post: '', market: '', platform: 'Facebook', status: 'Scheduled' } }),
+                                                onCloseComposer: () => setMktComposer(null),
+                                                onSavePost: handleSavePost,
+                                                onDeletePost: handleDeletePost,
+                                                selectedPost: mktSelectedPost,
+                                                onSelectPost: setMktSelectedPost,
+                                                onClosePost: () => setMktSelectedPost(null),
                                             }, dashData))
                                             : activeTab === 'vault'
                                                 ? renderEnterpriseVault(isMobile)

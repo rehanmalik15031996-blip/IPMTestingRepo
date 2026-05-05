@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const router = require('express').Router();
 const Property = require('../models/Property');
+const { syncDealForProperty } = require('../utils/salesPipelineSync');
 
 // CREATE NEW PROPERTY
 router.post('/', async (req, res) => {
@@ -100,12 +101,24 @@ router.put('/:id', async (req, res) => {
         if (body.listingMetadata !== undefined) {
             console.log('[properties] PUT', id, 'setting listingMetadata (requestId:', body.listingMetadata?.requestId ?? 'n/a', ')');
         }
+        // Capture the previous status BEFORE the update so we know if this PUT
+        // is the one flipping the property to "Under Negotiation".
+        const before = await Property.findById(id).select('status').lean();
+        const prevStatus = before?.status || null;
+
         const updatedProperty = await Property.findByIdAndUpdate(
             id,
             { $set: body },
             { new: true }
         );
         if (!updatedProperty) return res.status(404).json('Property not found');
+
+        // Sales pipeline sync — fire-and-forget. Auto-creates / updates the deal
+        // in the agency's salesDeals when status flips into or out of "Under Negotiation".
+        syncDealForProperty(updatedProperty, prevStatus).catch((err) => {
+            console.warn('[properties] sales sync failed:', err?.message || err);
+        });
+
         res.status(200).json(updatedProperty);
     } catch (err) {
         res.status(500).json(err);

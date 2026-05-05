@@ -580,15 +580,31 @@ router.get('/:id', async (req, res) => {
         if (type === 'listings') {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
             res.setHeader('Pragma', 'no-cache');
+            // ?slim=1 — drop heavy media + non-area_housing metadata. Used by Prospecting.
+            const slim = String(req.query?.slim || '').trim() === '1';
+            const trimProp = (p) => {
+                if (!p) return p;
+                const out = { ...p };
+                delete out.media;
+                delete out.imageGallery;
+                if (out.listingMetadata && typeof out.listingMetadata === 'object') {
+                    out.listingMetadata = {
+                        area_housing: out.listingMetadata.area_housing,
+                        property: out.listingMetadata.property,
+                    };
+                }
+                return out;
+            };
             const listingUser = await User.findById(id).lean();
             if (!listingUser) return res.status(404).json({ message: 'User not found' });
             const listingRole = (listingUser.role || '').toLowerCase();
             if (listingRole === 'agency') {
                 const propFilter = await agencyListingPropertyFilter(id);
-                const [agentProps, agencyMembers] = await Promise.all([
+                const [agentPropsRaw, agencyMembers] = await Promise.all([
                     Property.find(propFilter).sort({ createdAt: -1 }).limit(200).lean(),
                     User.find({ agencyId: id }).select('_id name email').lean(),
                 ]);
+                const agentProps = slim ? agentPropsRaw.map(trimProp) : agentPropsRaw;
                 const nameMap = {};
                 (agencyMembers || []).forEach((u) => {
                     nameMap[String(u._id)] = u.name || u.email || 'Agent';
@@ -606,17 +622,47 @@ router.get('/:id', async (req, res) => {
                 });
             }
             if (listingRole === 'agency_agent' || listingRole === 'independent_agent' || listingRole === 'agent') {
-                const agentProps = await Property.find({ agentId: id }).sort({ createdAt: -1 }).limit(200).lean();
+                const agentPropsRaw = await Property.find({ agentId: id }).sort({ createdAt: -1 }).limit(200).lean();
+                const agentProps = slim ? agentPropsRaw.map(trimProp) : agentPropsRaw;
                 let crmLeads = listingUser.agentStats?.crmLeads || [];
+                // Build a topAgents-style roster so the Under Negotiation
+                // modal's listing-agent picker has options. Agency agents see
+                // their full agency roster; sole agents just see themselves.
+                const selfEntry = {
+                    _id: String(listingUser._id),
+                    id: String(listingUser._id),
+                    name: listingUser.name || listingUser.email || 'Me',
+                };
+                let topAgents = [selfEntry];
                 if (listingRole === 'agency_agent' && listingUser.agencyId) {
-                    const agency = await User.findById(listingUser.agencyId).select('agencyStats.crmLeads').lean();
+                    const [agency, agencyMembers] = await Promise.all([
+                        User.findById(listingUser.agencyId).select('agencyStats.crmLeads agencyStats.topAgents name').lean(),
+                        User.find({ agencyId: listingUser.agencyId }).select('_id name email').lean(),
+                    ]);
                     const agencyLeads = agency?.agencyStats?.crmLeads || [];
                     const currentUserIdStr = String(id);
                     crmLeads = agencyLeads.filter((l) => String(l?.assignedAgentId || '').trim() === currentUserIdStr);
+                    const memberMap = {};
+                    (agencyMembers || []).forEach((u) => {
+                        memberMap[String(u._id)] = u.name || u.email || 'Agent';
+                    });
+                    const seenIds = new Set([currentUserIdStr]);
+                    const topRoster = (agency?.agencyStats?.topAgents || [])
+                        .map((a) => {
+                            const aid = a._id ? String(a._id) : (a.id ? String(a.id) : null);
+                            if (!aid) return null;
+                            return { _id: aid, id: aid, name: memberMap[aid] || a.name || a.email || 'Agent' };
+                        })
+                        .filter((a) => a && !seenIds.has(a.id) && (seenIds.add(a.id) || true));
+                    topAgents = [selfEntry, ...topRoster];
+                    const agencyIdStr = String(listingUser.agencyId);
+                    if (!seenIds.has(agencyIdStr)) {
+                        topAgents.push({ _id: agencyIdStr, id: agencyIdStr, name: `${agency?.name || 'Agency'} (Agency)` });
+                    }
                 }
                 return res.status(200).json({
                     agentProperties: agentProps,
-                    stats: { crmLeads },
+                    stats: { topAgents, crmLeads },
                     agentStats: { crmLeads },
                 });
             }
@@ -825,6 +871,20 @@ router.get('/:id', async (req, res) => {
                             if (p.saleDate && new Date(p.saleDate) >= thisMonthStart) thisMonthByAgent[aid] += p.salePrice || 0;
                         }
                     });
+                    // Bucket per-agent listing + lead counts so topAgents can carry pipeline signals
+                    const totalListingsByAgent = {};
+                    (agentProps || []).forEach((p) => {
+                        const aid = p.agentId ? String(p.agentId) : null;
+                        if (!aid) return;
+                        totalListingsByAgent[aid] = (totalListingsByAgent[aid] || 0) + 1;
+                    });
+                    const leadCountByAgentId = {};
+                    (user.agencyStats?.crmLeads || []).forEach((l) => {
+                        const aid = l.assignedAgentId ? String(l.assignedAgentId) : null;
+                        if (!aid) return;
+                        leadCountByAgentId[aid] = (leadCountByAgentId[aid] || 0) + 1;
+                    });
+
                     const topAgents = (user.agencyStats?.topAgents || []).map((a) => {
                         const raw = (a && typeof a.toObject === 'function') ? a.toObject() : { ...(a || {}) };
                         const aid = raw._id ? String(raw._id) : (raw.id ? String(raw.id) : null)
@@ -834,6 +894,8 @@ router.get('/:id', async (req, res) => {
                         const totalSales = aid ? (revenueByAgent[aid] || 0) : 0;
                         const thisMonth = aid ? (thisMonthByAgent[aid] || 0) : 0;
                         const closedCount = aid ? (totalClosedCountByAgent[aid] || 0) : 0;
+                        const totalListings = aid ? (totalListingsByAgent[aid] || 0) : 0;
+                        const leadCount = aid ? (leadCountByAgentId[aid] || 0) : 0;
                         const monthlyTarget = raw.monthlyTarget != null ? raw.monthlyTarget : 0;
                         const percentOfTarget = monthlyTarget > 0 ? Math.round((thisMonth / monthlyTarget) * 100) : null;
                         return {
@@ -846,6 +908,12 @@ router.get('/:id', async (req, res) => {
                             branchName: (live?.branchName != null && live.branchName !== '') ? live.branchName : (raw.branchName ?? raw.branch),
                             totalSales,
                             closedCount,
+                            // Pipeline signals — surfaced so the Agents tab KPI tiles
+                            // ("deals in pipeline", "low activity") can derive real counts.
+                            totalListings,
+                            activeListings: totalListings,
+                            leadCount,
+                            activeLeads: leadCount,
                             revenueThisMonth: thisMonth,
                             monthlyTarget,
                             percentOfTarget
@@ -1095,6 +1163,21 @@ async function addLeadHandler(req, res) {
         const rawStatus = (lead.status || lead.initialStatus || 'new').toString().trim().toLowerCase();
         const validStatus = ['new', 'contacted', 'qualified', 'viewing_scheduled', 'viewing_completed', 'negotiation', 'under_contract', 'won', 'lost', 'on_hold'].includes(rawStatus) ? rawStatus : 'new';
         const id = 'lid_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        // Mirror api/users/add-lead.js — accept buyer / seller / investor / prospect and
+        // route the matching detail subdoc; default to buyer when unknown.
+        const allowedLeadTypes = ['buyer', 'seller', 'investor', 'prospect'];
+        const incomingLeadType = (lead.leadType || '').toString().trim().toLowerCase();
+        const resolvedLeadType = allowedLeadTypes.includes(incomingLeadType) ? incomingLeadType : 'buyer';
+        const initialActivity = lead.initialActivity && typeof lead.initialActivity === 'string' && lead.initialActivity.trim()
+            ? lead.initialActivity.trim()
+            : 'Lead created';
+        const linkedProperties = [];
+        if (lead.propertyId && (lead.propertyOfInterest || lead.propertyTitle)) {
+            linkedProperties.push({ id: lead.propertyId, title: lead.propertyOfInterest || lead.propertyTitle || 'Property' });
+        } else if (lead.propertyOfInterest) {
+            linkedProperties.push({ id: null, title: lead.propertyOfInterest });
+        }
+        const dateAdded = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const newLead = {
             id,
             name: lead.name || `${(lead.firstName || '').trim()} ${(lead.lastName || '').trim()}`.trim() || 'Unknown',
@@ -1103,12 +1186,18 @@ async function addLeadHandler(req, res) {
             type: lead.propertyOfInterest || lead.type || '—',
             budget: lead.budget || '—',
             status: validStatus,
-            lastContact: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            lastContact: dateAdded,
+            dateAdded,
             propertyOfInterest: lead.propertyOfInterest || '',
-            activities: [createActivity('Lead created', changedBy)],
-            leadType: lead.leadType === 'seller' ? 'seller' : 'buyer',
-            buyerDetails: lead.leadType === 'buyer' && lead.buyerDetails ? lead.buyerDetails : undefined,
-            sellerDetails: lead.leadType === 'seller' && lead.sellerDetails ? lead.sellerDetails : undefined
+            propertyId: lead.propertyId ? String(lead.propertyId) : (linkedProperties[0]?.id ? String(linkedProperties[0].id) : null),
+            source: lead.source || 'Inquiry',
+            linkedProperties,
+            activities: [createActivity(initialActivity, changedBy)],
+            leadType: resolvedLeadType,
+            buyerDetails: resolvedLeadType === 'buyer' && lead.buyerDetails ? lead.buyerDetails : undefined,
+            sellerDetails: resolvedLeadType === 'seller' && lead.sellerDetails ? lead.sellerDetails : undefined,
+            investorDetails: resolvedLeadType === 'investor' && lead.investorDetails ? lead.investorDetails : undefined,
+            prospectDetails: resolvedLeadType === 'prospect' && lead.prospectDetails ? lead.prospectDetails : undefined
         };
 
         if (role === 'agency') {

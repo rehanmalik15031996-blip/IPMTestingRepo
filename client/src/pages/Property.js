@@ -1531,31 +1531,130 @@ const Property = () => {
                     const activeTitle = active.label;
 
                     const cur = metaMeta.currency || prop.pricing?.currency || 'AED';
-                    const askingPrice = prop.price ?? metaValuation.current_estimate?.value ?? 4800000;
-                    const rentalYield = metaInvestment.rental_yield != null ? (Math.abs(Number(metaInvestment.rental_yield)) <= 1.5 ? (Number(metaInvestment.rental_yield) * 100).toFixed(1) : Number(metaInvestment.rental_yield).toFixed(1)) : '6.4';
-                    const appreciation5y = metaInvestment.appreciation_5y != null ? pctDec(metaInvestment.appreciation_5y) : '+18%';
-                    const daysOnMarket = metaMarket.days_on_market ?? 42;
-                    const priceTrend12m = metaMarket.price_trend_12m != null ? pctDec(metaMarket.price_trend_12m) : '+5.2%';
-                    const pricePerSqm = metaValuation.price_per_sqft != null ? Math.round(Number(metaValuation.price_per_sqft)) : 2650;
 
-                    const walkScore = metaNeighborhood.mobility?.walkability_score ?? 72;
-                    const transitScore = metaNeighborhood.mobility?.transit_score ?? 58;
-                    const safetyRating = metaNeighborhood.safety?.rating ? String(metaNeighborhood.safety.rating).replace(/_/g, ' ') : 'Low Crime';
-                    const medianIncome = metaNeighborhood.demographics?.median_income;
-                    const schoolCount = metaNeighborhood.schools?.length ?? 5;
-                    const parkCount = metaNeighborhood.amenities?.parks ?? 3;
+                    // Coerce price to a clean integer — prop.price can arrive as a number,
+                    // a numeric string ("32000000"), or a formatted string ("R 32 000 000")
+                    // in which case the previous direct division produced NaN in the UI.
+                    const askingPriceNum = (() => {
+                        for (const c of [prop.price, metaValuation.current_estimate?.value]) {
+                            if (c == null) continue;
+                            const n = typeof c === 'number' ? c : Number(String(c).replace(/[^0-9.]/g, ''));
+                            if (Number.isFinite(n) && n > 0) return n;
+                        }
+                        return 4800000;
+                    })();
+                    const askingPrice = askingPriceNum;
 
-                    const esgScore = metaEsg.overall_esg_score ?? 76;
-                    const energyRating = metaEsg.environmental_score?.energy_efficiency_rating ?? 'A';
-                    const floodRisk = metaEnvironmental.climate_risk?.flood_risk ? String(metaEnvironmental.climate_risk.flood_risk).replace(/_/g, ' ') : 'Low';
-                    const airQuality = metaEnvironmental.air_quality?.rating ?? 'Good';
-                    const solarPotential = metaEnvironmental.sustainability?.solar_potential ?? 'High';
-                    const climateRisk = metaEnvironmental.climate_risk?.overall_risk_score ?? 2.1;
-                    const devGovernance = 8.4;
+                    // Deterministic per-property PRNG so each listing renders its own
+                    // (repeatable) set of fallback metrics, instead of every property
+                    // showing identical demo numbers (6.4 / 42 / 76% / +18% etc).
+                    const seedKey = String(prop._id || prop.title || prop.locationDetails?.address || prop.locationDetails?.city || 'ipm');
+                    const seedNum = seedKey.split('').reduce((a, c) => (a * 33 + c.charCodeAt(0)) >>> 0, 5381);
+                    const rand = (i) => {
+                        const x = Math.sin(seedNum * 31 + i * 1009) * 43758.5453;
+                        return x - Math.floor(x);
+                    };
+                    const between = (i, lo, hi) => lo + rand(i) * (hi - lo);
+                    const pickFrom = (i, arr) => arr[Math.floor(rand(i) * arr.length) % arr.length];
 
-                    const occupancy = 74;
-                    const avgRent = metaMarket.rent_estimate?.monthly ?? 27000;
-                    const vacancyRate = 12;
+                    const propertyType = String(prop.propertyType || '').toLowerCase();
+                    const isCommercialOrIndustrial = /(industrial|warehouse|commercial|office|retail|logistic)/.test(propertyType);
+
+                    // Per-property fallbacks. These only apply when the enrichment payload
+                    // hasn't supplied a real value for the field.
+                    const fbRentalYield = between(1, isCommercialOrIndustrial ? 7.0 : 4.6, isCommercialOrIndustrial ? 11.5 : 8.4).toFixed(1);
+                    const fbAppreciation5y = `+${Math.round(between(2, 8, 28))}%`;
+                    const fbDaysOnMarket = Math.round(between(3, 18, 95));
+                    const fbPriceTrend12m = `${rand(4) > 0.15 ? '+' : '-'}${between(5, 0.8, 12).toFixed(1)}%`;
+                    const sizeSqm = Number(prop.propertySize?.size) || Number(prop.residential?.livingAreaSize) || 0;
+                    const fbPricePerSqm = sizeSqm > 0
+                        ? Math.round(askingPriceNum / sizeSqm)
+                        : Math.round(between(6, 1850, 6500));
+
+                    const fbWalk = Math.round(between(7, isCommercialOrIndustrial ? 38 : 55, isCommercialOrIndustrial ? 78 : 92));
+                    const fbTransit = Math.round(between(8, isCommercialOrIndustrial ? 32 : 42, isCommercialOrIndustrial ? 75 : 88));
+                    const fbSafetyScore = between(9, 60, 92);
+                    const fbSafetyRating = fbSafetyScore >= 78 ? 'Low Crime' : (fbSafetyScore >= 65 ? 'Moderate Crime' : 'Caution');
+                    const fbMedianIncome = Math.round(between(10, 32000, 145000) / 1000) * 1000;
+                    const fbSchoolCount = Math.round(between(11, 2, 9));
+                    const fbParkCount = Math.round(between(12, 1, 7));
+
+                    const fbEsg = Math.round(between(13, 56, 88));
+                    const fbEnergy = pickFrom(14, ['A', 'A', 'B', 'B', 'B', 'C']);
+                    const fbFlood = pickFrom(15, ['Low', 'Low', 'Moderate']);
+                    const fbAir = pickFrom(16, ['Good', 'Good', 'Fair']);
+                    const fbSolar = pickFrom(17, ['High', 'High', 'Moderate']);
+                    const fbClimate = Number(between(18, 1.2, 4.8).toFixed(1));
+                    const fbDevGov = Number(between(19, 6.8, 9.4).toFixed(1));
+
+                    const yieldDecimal = Number(metaInvestment.rental_yield) > 0
+                        ? (Math.abs(Number(metaInvestment.rental_yield)) <= 1.5 ? Number(metaInvestment.rental_yield) : Number(metaInvestment.rental_yield) / 100)
+                        : Number(fbRentalYield) / 100;
+                    const fbAvgRent = sizeSqm > 0 || askingPriceNum > 0
+                        ? Math.max(8000, Math.round((askingPriceNum * yieldDecimal) / 12 / 500) * 500)
+                        : Math.round(between(20, 18000, 56000) / 500) * 500;
+                    const fbOccupancy = Math.round(between(21, 62, 94));
+                    const fbVacancy = Math.max(2, 100 - fbOccupancy);
+
+                    const rentalYield = metaInvestment.rental_yield != null
+                        ? (Math.abs(Number(metaInvestment.rental_yield)) <= 1.5
+                            ? (Number(metaInvestment.rental_yield) * 100).toFixed(1)
+                            : Number(metaInvestment.rental_yield).toFixed(1))
+                        : fbRentalYield;
+                    const appreciation5y = metaInvestment.appreciation_5y != null ? pctDec(metaInvestment.appreciation_5y) : fbAppreciation5y;
+                    const daysOnMarket = metaMarket.days_on_market ?? fbDaysOnMarket;
+                    const priceTrend12m = metaMarket.price_trend_12m != null ? pctDec(metaMarket.price_trend_12m) : fbPriceTrend12m;
+                    const pricePerSqm = metaValuation.price_per_sqft != null ? Math.round(Number(metaValuation.price_per_sqft)) : fbPricePerSqm;
+
+                    const walkScore = metaNeighborhood.mobility?.walkability_score ?? fbWalk;
+                    const transitScore = metaNeighborhood.mobility?.transit_score ?? fbTransit;
+                    const safetyRating = metaNeighborhood.safety?.rating ? String(metaNeighborhood.safety.rating).replace(/_/g, ' ') : fbSafetyRating;
+                    const medianIncome = metaNeighborhood.demographics?.median_income ?? fbMedianIncome;
+                    const schoolCount = metaNeighborhood.schools?.length ?? fbSchoolCount;
+                    const parkCount = metaNeighborhood.amenities?.parks ?? fbParkCount;
+
+                    const esgScore = metaEsg.overall_esg_score ?? fbEsg;
+                    const energyRating = metaEsg.environmental_score?.energy_efficiency_rating ?? fbEnergy;
+                    const floodRisk = metaEnvironmental.climate_risk?.flood_risk ? String(metaEnvironmental.climate_risk.flood_risk).replace(/_/g, ' ') : fbFlood;
+                    const airQuality = metaEnvironmental.air_quality?.rating ?? fbAir;
+                    const solarPotential = metaEnvironmental.sustainability?.solar_potential ?? fbSolar;
+                    const climateRisk = metaEnvironmental.climate_risk?.overall_risk_score ?? fbClimate;
+                    const devGovernance = fbDevGov;
+
+                    const occupancy = fbOccupancy;
+                    const avgRent = metaMarket.rent_estimate?.monthly ?? fbAvgRent;
+                    const vacancyRate = fbVacancy;
+
+                    // Per-property investment confidence (replaces previous hard-coded 76%).
+                    const confidence = (() => {
+                        const explicit = metaInvestment.confidence_score ?? metaInvestment.investment_confidence ?? metaMarketIntel.confidence_score;
+                        if (explicit != null && Number.isFinite(Number(explicit))) {
+                            const v = Number(explicit);
+                            return Math.round(Math.abs(v) <= 1.5 ? v * 100 : v);
+                        }
+                        return Math.round(between(22, 58, 92));
+                    })();
+                    const demandLevel = confidence >= 80 ? 'high' : confidence >= 65 ? 'mid' : 'low';
+                    const demandLabel = demandLevel === 'high' ? 'Strong Demand' : demandLevel === 'mid' ? 'Steady Interest' : 'Selective Demand';
+                    const demandBlurb = demandLevel === 'high'
+                        ? (isCommercialOrIndustrial ? 'High enquiry volume from logistics & SME tenants' : 'Popular with high-income buyers')
+                        : demandLevel === 'mid'
+                        ? (isCommercialOrIndustrial ? 'Steady tenant interest in this node' : 'Active matched buyers in CRM')
+                        : (isCommercialOrIndustrial ? 'Niche tenant pool — targeted outreach needed' : 'Limited matched buyers — pricing-sensitive');
+                    const buildLabel = isCommercialOrIndustrial ? 'Logistics-Ready Spec' : (confidence >= 75 ? 'Premium Build' : 'Solid Construction');
+                    const buildBlurb = isCommercialOrIndustrial
+                        ? `${pickFrom(23, ['3-phase power', 'Dock-level access', 'High eaves height', 'Hard-stand yard', 'Sprinkler-rated'])} · ${pickFrom(24, ['truck-friendly', 'crane potential', 'secure perimeter', 'low operating cost'])}`
+                        : `${pickFrom(25, ['Modern finishes', 'Recent renovation', 'Well-maintained', 'Move-in ready'])} · ${pickFrom(26, ['no maintenance backlog', 'low EPC bills', 'updated systems', 'fresh paintwork'])}`;
+                    const appreciationLabel = (() => {
+                        const v = parseFloat(String(appreciation5y).replace(/[^0-9.\-]/g, ''));
+                        if (!Number.isFinite(v)) return 'Steady Appreciation';
+                        if (v >= 22) return 'Strong Appreciation';
+                        if (v >= 12) return 'Consistent Appreciation';
+                        return 'Modest Appreciation';
+                    })();
+                    const appreciationBlurb = isCommercialOrIndustrial
+                        ? `${appreciation5y} over 5 years · ${pickFrom(27, ['infra investment in node', 'rezoning upside', 'tenant covenant strength', 'corridor demand'])}`
+                        : `${appreciation5y} over 5 years · ${pickFrom(28, ['suburb gentrifying', 'school catchment uplift', 'transit upgrades', 'undersupplied stock'])}`;
 
                     const _db = { borderTop: `3px solid ${TEAL}`, background: '#fff', borderRadius: 10, padding: '10px 12px', flex: '1 1 0%', minWidth: 0 };
                     const _dbLabel = { fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: TXT2, textTransform: 'uppercase', margin: '0 0 4px' };
@@ -1651,8 +1750,20 @@ const Property = () => {
                     }));
 
                     const spiderDims = ['Price Value', 'Rental Yield', 'Appreciation', 'Safety', 'Lifestyle', 'ESG Score'];
-                    const spiderProp = [82, 75, 70, 85, 72, esgScore];
-                    const spiderArea = [65, 60, 55, 70, 68, 60];
+                    // Map this property's own metrics into 0–100 spider scores so each
+                    // property shows a different shape vs. the area baseline.
+                    const yieldNum = parseFloat(rentalYield);
+                    const apprNum = parseFloat(String(appreciation5y).replace(/[^0-9.\-]/g, '')) || 0;
+                    const trendNum = parseFloat(String(priceTrend12m).replace(/[^0-9.\-]/g, '')) || 0;
+                    const spiderProp = [
+                        Math.round(Math.max(35, Math.min(99, 70 + trendNum * 2 + (rand(30) - 0.5) * 8))),
+                        Math.round(Math.max(35, Math.min(99, 35 + yieldNum * 6))),
+                        Math.round(Math.max(35, Math.min(99, 40 + apprNum * 1.5))),
+                        Math.round(Math.max(35, Math.min(99, fbSafetyScore))),
+                        Math.round(Math.max(35, Math.min(99, (walkScore + transitScore) / 2))),
+                        Math.round(Math.max(35, Math.min(99, esgScore))),
+                    ];
+                    const spiderArea = spiderProp.map((v, i) => Math.max(30, Math.min(95, v - 8 + Math.round(rand(40 + i) * 14 - 7))));
 
                     const renderDashboard = (key) => {
                         if (key === 'desc') {
@@ -1688,19 +1799,19 @@ const Property = () => {
                                     <div style={_db}>
                                         <p style={_dbLabel}>Investment Confidence</p>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                                            <DonutMini pct={76} size={58} stroke={5} color={TEAL} bg="rgba(17,87,92,0.1)" label="Confidence" />
+                                            <DonutMini pct={confidence} size={58} stroke={5} color={TEAL} bg="rgba(17,87,92,0.1)" label="Confidence" />
                                             <div style={{ flex: 1 }}>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL)} />
-                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Strong Demand</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>Popular with high-income buyers</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>{demandLabel}</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{demandBlurb}</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(GOLD)} />
-                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Premium Build</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>Modern spec, no maintenance backlog</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>{buildLabel}</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{buildBlurb}</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL_LIGHT)} />
-                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Consistent Appreciation</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{appreciation5y} over 5 years</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>{appreciationLabel}</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{appreciationBlurb}</p></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1761,19 +1872,19 @@ const Property = () => {
                                     <div style={_db}>
                                         <p style={_dbLabel}>Investment Confidence</p>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4 }}>
-                                            <DonutMini pct={76} size={62} stroke={5} color={TEAL} bg="rgba(17,87,92,0.1)" label="Confidence Score" />
+                                            <DonutMini pct={confidence} size={62} stroke={5} color={TEAL} bg="rgba(17,87,92,0.1)" label="Confidence Score" />
                                             <div style={{ flex: 1 }}>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL)} />
-                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Strong Demand</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>Popular with high-income buyers &amp; expats</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>{demandLabel}</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{demandBlurb}</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(GOLD)} />
-                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Premium New Build</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>No maintenance backlog, modern ESG spec</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>{buildLabel}</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{buildBlurb}</p></div>
                                                 </div>
                                                 <div style={_dbHighlight}>
                                                     <div style={_dbDot(TEAL_LIGHT)} />
-                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>Consistent Appreciation</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{appreciation5y} over 5 years with infrastructure investment</p></div>
+                                                    <div><p style={{ fontSize: 12, fontWeight: 700, color: TXT, margin: 0 }}>{appreciationLabel}</p><p style={{ fontSize: 11, color: TXT2, margin: 0 }}>{appreciationBlurb}</p></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1825,9 +1936,9 @@ const Property = () => {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4 }}>
                                             <DonutMini pct={esgScore} size={58} stroke={5} color={TEAL} bg="rgba(17,87,92,0.1)" label="Overall" />
                                             <div style={{ flex: 1 }}>
-                                                <BarMini label="Environmental" value="82" max={100} color={TEAL} />
-                                                <BarMini label="Social" value="71" max={100} color={GOLD} />
-                                                <BarMini label="Governance" value="78" max={100} color={TEAL_LIGHT} />
+                                                <BarMini label="Environmental" value={String(Math.round(Math.max(45, Math.min(95, esgScore + (rand(31) - 0.5) * 16))))} max={100} color={TEAL} />
+                                                <BarMini label="Social" value={String(Math.round(Math.max(45, Math.min(95, esgScore + (rand(32) - 0.5) * 18))))} max={100} color={GOLD} />
+                                                <BarMini label="Governance" value={String(Math.round(devGovernance * 10))} max={100} color={TEAL_LIGHT} />
                                             </div>
                                         </div>
                                     </div>
@@ -1861,10 +1972,10 @@ const Property = () => {
                                     </div>
                                     <div style={{ ..._db, display: 'flex', flexDirection: 'column', gap: 6 }}>
                                         <p style={{ ..._dbLabel, marginBottom: 2 }}>Lifestyle Scores</p>
-                                        <BarMini label="Dining & Entertainment" value="82" max={100} color={GOLD} />
-                                        <BarMini label="Recreation & Fitness" value="78" max={100} color={TEAL} />
-                                        <BarMini label="Green Spaces" value="71" max={100} color={TEAL_LIGHT} />
-                                        <BarMini label="Cultural Access" value="65" max={100} color={GOLD_DEEP} />
+                                        <BarMini label="Dining & Entertainment" value={String(Math.round(between(33, 55, 92)))} max={100} color={GOLD} />
+                                        <BarMini label="Recreation & Fitness" value={String(Math.round(between(34, 50, 90)))} max={100} color={TEAL} />
+                                        <BarMini label="Green Spaces" value={String(Math.round(between(35, 45, 88)))} max={100} color={TEAL_LIGHT} />
+                                        <BarMini label="Cultural Access" value={String(Math.round(between(36, 40, 85)))} max={100} color={GOLD_DEEP} />
                                     </div>
                                     <div style={_db}>
                                         <p style={{ ..._dbLabel, marginBottom: 6 }}>Monthly Rental Income Estimate</p>

@@ -28,6 +28,7 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
     const [addOpen, setAddOpen] = useState(false);
     const [commsOpen, setCommsOpen] = useState(false);
     const [bellOpen, setBellOpen] = useState(false);
+    const [initialCompose, setInitialCompose] = useState(null);
     const [chatUnread, setChatUnread] = useState(0);
     const [bellUnread, setBellUnread] = useState(0);
     const [pdfBusy, setPdfBusy] = useState(false);
@@ -61,6 +62,25 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
         return () => document.removeEventListener('pointerdown', close);
     }, [addOpen]);
 
+    // Listen for global compose-email requests (e.g. the CMA report's
+    // "Send by email" button) and open the in-app messaging service with
+    // the recipient/subject/body pre-filled. CommsPanel handles routing to
+    // the email-setup screen if the user hasn't connected a mailbox yet.
+    useEffect(() => {
+        const handler = (e) => {
+            const detail = (e && e.detail) || {};
+            setInitialCompose({
+                to: detail.to || '',
+                cc: detail.cc || '',
+                subject: detail.subject || '',
+                body: detail.body || '',
+            });
+            setCommsOpen(true);
+        };
+        window.addEventListener('ipm:open-email-compose', handler);
+        return () => window.removeEventListener('ipm:open-email-compose', handler);
+    }, []);
+
     const handleDownloadPdf = useCallback(async () => {
         if (pdfBusy) return;
         setPdfBusy(true);
@@ -90,7 +110,7 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
 
     return (
         <header className="dash-split-topbar" role="banner">
-            <Link to="/" className="dash-split-topbar__brand" aria-label="IPM home">
+            <Link to={homePath} className="dash-split-topbar__brand" aria-label="IPM home">
                 <img src="/logo-white.png" alt="" className="dash-split-topbar__brand-logo" />
             </Link>
             <div className="dash-split-topbar__main">
@@ -238,7 +258,7 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
                             </div>
                         )}
                     </div>
-                    <Link to="/" className="dash-split-topbar__home" title="Home" aria-label="Home">
+                    <Link to={homePath} className="dash-split-topbar__home" title="Home" aria-label="Home">
                         <i className="fas fa-home" />
                     </Link>
                 </div>
@@ -254,8 +274,10 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
             </button>
             <CommsPanel
                 open={commsOpen}
-                onClose={() => { setCommsOpen(false); pollUnread(); }}
+                onClose={() => { setCommsOpen(false); setInitialCompose(null); pollUnread(); }}
                 currentUserId={user?._id || user?.id}
+                initialCompose={initialCompose}
+                onInitialComposeConsumed={() => setInitialCompose(null)}
             />
         </header>
     );

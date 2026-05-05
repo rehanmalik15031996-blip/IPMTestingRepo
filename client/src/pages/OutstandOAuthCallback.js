@@ -40,6 +40,17 @@ export default function OutstandOAuthCallback() {
             throw new Error(fin.data?.error || fin.data?.message || 'No accounts were connected');
           }
         }
+        // If we were opened as a popup from the Marketing tab, notify the
+        // opener so it can refresh its connected-account list and close us.
+        // Otherwise (full-page redirect), fall back to navigating to /marketing.
+        const opener = window.opener && window.opener !== window ? window.opener : null;
+        if (opener) {
+          try {
+            opener.postMessage({ type: 'outstand:connected' }, window.location.origin);
+          } catch (_) { /* ignore postMessage errors */ }
+          try { window.close(); } catch (_) { /* ignore */ }
+          return;
+        }
         let marketingPath = '/marketing';
         try {
           const u = JSON.parse(localStorage.getItem('user') || 'null');

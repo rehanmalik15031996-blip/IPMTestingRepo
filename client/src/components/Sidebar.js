@@ -107,16 +107,20 @@ const Sidebar = () => {
                             <span>{sidebarRoleLabel()}</span>
                         </div>
                     </div>
-                    <div className="sb-stat-pills">
-                        <div className="sb-stat-pill">
-                            <span className="sb-stat-label">Tier:</span>
-                            <span className="sb-stat-value">{user?.agentTier || user?.subscriptionTier || user?.subscriptionPlan || '—'}</span>
+                    {/* Tier + IPM Score are agent-level KPIs — hide for agency principals
+                        until we have an agency-wide score. Still shown for everyone else. */}
+                    {role !== 'agency' && (
+                        <div className="sb-stat-pills">
+                            <div className="sb-stat-pill">
+                                <span className="sb-stat-label">Tier:</span>
+                                <span className="sb-stat-value">{user?.agentTier || user?.subscriptionTier || user?.subscriptionPlan || '—'}</span>
+                            </div>
+                            <div className="sb-stat-pill">
+                                <span className="sb-stat-label">IPM Score:</span>
+                                <span className="sb-stat-value">{user?.agentScore != null ? String(user.agentScore) : (user?.ipmScore != null && user?.ipmScore !== '' ? String(user.ipmScore) : '—')}</span>
+                            </div>
                         </div>
-                        <div className="sb-stat-pill">
-                            <span className="sb-stat-label">IPM Score:</span>
-                            <span className="sb-stat-value">{user?.agentScore != null ? String(user.agentScore) : (user?.ipmScore != null && user?.ipmScore !== '' ? String(user.ipmScore) : '—')}</span>
-                        </div>
-                    </div>
+                    )}
                 </>
             )}
 
@@ -192,20 +196,25 @@ const Sidebar = () => {
                     </Link>
                 )}
 
-                {/* INDEPENDENT AGENT & AGENCY AGENT */}
+                {/* INDEPENDENT AGENT & AGENCY AGENT — mirror the agency sidebar so
+                    agents see the same tabs as their agency, just filtered to
+                    their own listings / leads / deals. */}
                 {(role === 'independent_agent' || role === 'agency_agent') && (
                     <>
                         <Link to="/prospecting" className={`sb-link ${isActive('/prospecting')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-prospecting">
                             <i className="fas fa-bullseye"></i> Prospecting
                         </Link>
-                        <Link to="/portfolio" className={`sb-link ${isActive('/portfolio')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-listings">
-                            <i className="fas fa-list"></i> Listing management
+                        <Link to="/listing-management" className={`sb-link ${isActive('/listing-management')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-listings">
+                            <i className="fas fa-list"></i> {t('sidebar.listingManagement')}
                         </Link>
                         <Link to="/crm" className={`sb-link ${isActive('/crm')}`} onClick={() => setMobileOpen(false)} data-tour="sidebar-crm">
                             <i className="fas fa-address-book"></i> My CRM
                         </Link>
                         <Link to="/marketing" className={`sb-link ${isActive('/marketing')}`} onClick={() => setMobileOpen(false)}>
                             <i className="fas fa-bullhorn"></i> {t('sidebar.marketing')}
+                        </Link>
+                        <Link to="/sales" className={`sb-link ${isActive('/sales')}`} onClick={() => setMobileOpen(false)}>
+                            <i className="fas fa-chart-line" style={{ opacity: 0.7 }}></i> Sales
                         </Link>
                     </>
                 )}
@@ -262,9 +271,9 @@ const Sidebar = () => {
                     </>
                 )}
 
-                {/* Agency / franchise: sales (was "Enterprise" — points to the same enterprise-invites page) */}
+                {/* Agency / franchise: sales pipeline (deals automatically appear here when a listing is set to "Under Negotiation") */}
                 {role === 'agency' && (
-                    <Link to="/enterprise/invites" className={`sb-link ${isActive('/enterprise/invites')}`} onClick={() => setMobileOpen(false)}>
+                    <Link to="/sales" className={`sb-link ${isActive('/sales')}`} onClick={() => setMobileOpen(false)}>
                         <i className="fas fa-chart-line" style={{ opacity: 0.7 }}></i> Sales
                     </Link>
                 )}

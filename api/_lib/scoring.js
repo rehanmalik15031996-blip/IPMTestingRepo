@@ -3,26 +3,65 @@
  * Used to compute tier/score that can be persisted and displayed.
  */
 
-// Deterministic "random" score from a string seed so each agent gets a stable, different score (25-89)
-function seededAgentScore(seed) {
-  const s = String(seed || '');
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return 25 + (Math.abs(h) % 65); // 25-89 so agents get different scores and tiers
-}
-
 /**
- * Compute agent tier and score. Deterministic from agentId (or email+name) so each agent gets a stable, different score that sticks when persisted.
- * @param { { agentId?: string, email?: string, name?: string } } inputs
+ * Compute agent tier and score from REAL activity (sales count, listings,
+ * leads, avg days to close). When no activity is present (newly seeded /
+ * onboarded agents with no history), returns score=0 and tier='silver' so the
+ * UI honestly shows zeros rather than fake placeholder numbers.
+ *
+ * @param { {
+ *   agentId?: string,
+ *   email?: string,
+ *   name?: string,
+ *   activity?: {
+ *     closedCount?: number,        // total closed transactions
+ *     totalSales?: number,         // gross revenue closed (any currency)
+ *     totalListings?: number,      // active or all-time listings
+ *     leadCount?: number,          // CRM leads attached to this agent
+ *     avgDaysToClose?: number,     // optional, for speed bonus
+ *   }
+ * } } inputs
  * @returns { { tier: 'silver'|'gold'|'platinum', score: number } }
  */
 function computeAgentTierAndScore(inputs) {
-  const seed = (inputs && (inputs.agentId != null ? String(inputs.agentId) : null)) || [inputs?.email, inputs?.name].filter(Boolean).join('|') || 'agent';
-  const score = seededAgentScore(seed);
+  const a = (inputs && inputs.activity) || {};
+  const closedCount = Number(a.closedCount) || 0;
+  const totalSales = Number(a.totalSales) || 0;
+  const totalListings = Number(a.totalListings) || 0;
+  const leadCount = Number(a.leadCount) || 0;
+  const avgDays = Number(a.avgDaysToClose);
+
+  // No activity = no score. Honest zero rather than seeded placeholder.
+  if (closedCount === 0 && totalListings === 0 && leadCount === 0 && totalSales === 0) {
+    return { tier: 'silver', score: 0 };
+  }
+
+  // Weighted contribution: closed deals (40%), listings (20%), leads (20%),
+  // sales volume bucket (15%), speed bonus (5%). Each capped at 100.
+  const closedScore = Math.min(100, closedCount * 10);   // 10 closed = 100
+  const listingsScore = Math.min(100, totalListings * 5); // 20 listings = 100
+  const leadsScore = Math.min(100, leadCount * 4);        // 25 leads = 100
+  const salesBucket = totalSales >= 5_000_000 ? 100
+                    : totalSales >= 1_000_000 ? 75
+                    : totalSales >= 250_000 ? 50
+                    : totalSales >= 50_000 ? 25
+                    : totalSales > 0 ? 10 : 0;
+  const speedBonus = Number.isFinite(avgDays) && avgDays > 0
+    ? Math.max(0, Math.min(100, Math.round((90 - avgDays) * 100 / 90)))
+    : 0;
+
+  const score = Math.round(
+    closedScore * 0.40 +
+    listingsScore * 0.20 +
+    leadsScore * 0.20 +
+    salesBucket * 0.15 +
+    speedBonus * 0.05
+  );
+
   let tier = 'silver';
   if (score >= 70) tier = 'platinum';
   else if (score >= 40) tier = 'gold';
-  return { tier, score };
+  return { tier, score: Math.min(100, Math.max(0, score)) };
 }
 
 /**

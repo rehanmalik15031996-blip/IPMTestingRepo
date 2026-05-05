@@ -1040,6 +1040,10 @@ const PropertyUploadForm = ({ isOpen, onClose, onSuccess, initialData = null, pr
         setMetadataModalShouldAdvanceStep(!!advanceAfterModalClose);
         const requestId = generateRequestId();
         const countryHint = (formData.location?.country || '').trim();
+        // Pass the property category so the metadata service can pull
+        // category-appropriate comparable listings (warehouses for industrial,
+        // shops for retail, houses for residential, etc.).
+        const categoryHint = (formData.propertyCategory || formData.category || formData.listingType || '').toString().trim();
 
         setShowListingMetadataModal(true);
         setMetadataLoadComplete(false);
@@ -1054,7 +1058,8 @@ const PropertyUploadForm = ({ isOpen, onClose, onSuccess, initialData = null, pr
             body: JSON.stringify({
                 address: requestedAddress,
                 requestId,
-                ...(countryHint ? { country: countryHint } : {})
+                ...(countryHint ? { country: countryHint } : {}),
+                ...(categoryHint ? { category: categoryHint } : {})
             })
         })
             .then(async (res) => {

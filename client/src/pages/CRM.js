@@ -159,7 +159,9 @@ const formatBudgetDisplay = (val, currency) => {
         const prefix = currency || 'ZAR';
         return `${prefix} ${Math.round(num).toLocaleString('en-ZA')}`;
     }
-    return val;
+    // Pre-formatted ranges (e.g. seeded as "R 90 000 000 – R 120 000 000")
+    // get normalised to ZAR so the CRM never shows the bare "R" prefix.
+    return String(val).replace(/(^|[\s(–—\-])R(\s)(?=\d)/g, '$1ZAR$2');
 };
 
 const CRM = () => {
@@ -691,6 +693,8 @@ const CRM = () => {
                             <option value="">All types</option>
                             <option value="buyer">Buyers</option>
                             <option value="seller">Sellers</option>
+                            <option value="investor">Investors</option>
+                            <option value="prospect">Prospects</option>
                         </select>
                     </div>
                 </div>
@@ -936,8 +940,8 @@ const CRM = () => {
                                                     fontWeight: 600,
                                                     padding: '2px 8px',
                                                     borderRadius: '6px',
-                                                    background: (lead.leadType || '').toLowerCase() === 'seller' ? '#fef3c7' : (lead.leadType || '').toLowerCase() === 'investor' ? '#dbeafe' : '#dcfce7',
-                                                    color: (lead.leadType || '').toLowerCase() === 'seller' ? '#b45309' : (lead.leadType || '').toLowerCase() === 'investor' ? '#1d4ed8' : '#166534'
+                                                    background: (lead.leadType || '').toLowerCase() === 'seller' ? '#fef3c7' : (lead.leadType || '').toLowerCase() === 'investor' ? '#dbeafe' : (lead.leadType || '').toLowerCase() === 'prospect' ? '#fce7f3' : '#dcfce7',
+                                                    color: (lead.leadType || '').toLowerCase() === 'seller' ? '#b45309' : (lead.leadType || '').toLowerCase() === 'investor' ? '#1d4ed8' : (lead.leadType || '').toLowerCase() === 'prospect' ? '#9d174d' : '#166534'
                                                 }}>
                                                     {lead.leadType ? String(lead.leadType).charAt(0).toUpperCase() + String(lead.leadType).slice(1).toLowerCase() : 'Buyer'}
                                                 </span>

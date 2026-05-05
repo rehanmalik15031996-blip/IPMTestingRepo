@@ -4,6 +4,7 @@ const Property = require('../../server/models/Property');
 const User = require('../../server/models/User');
 const File = require('../../server/models/File');
 const { computePropertyIpmScore } = require('../_lib/scoring');
+const { syncDealForProperty } = require('../../server/utils/salesPipelineSync');
 
 module.exports = async (req, res) => {
   if (handleCors(req, res)) return;
@@ -31,6 +32,7 @@ module.exports = async (req, res) => {
     try {
       const body = req.body || {};
       const existing = await Property.findById(id).lean();
+      const prevStatus = existing?.status || null;
       const merged = { ...(existing || {}), ...body };
       const ipmScore = computePropertyIpmScore(merged);
       const updatedProperty = await Property.findByIdAndUpdate(
@@ -39,6 +41,11 @@ module.exports = async (req, res) => {
         { new: true }
       );
       if (!updatedProperty) return res.status(404).json({ message: 'Property not found' });
+      // Auto-sync sales pipeline when status flips into / out of Under Negotiation.
+      // Run async without blocking the response — failures only log.
+      syncDealForProperty(updatedProperty, prevStatus).catch((err) => {
+        console.warn('[api/properties] sales sync failed:', err?.message || err);
+      });
       return res.status(200).json(updatedProperty);
     } catch (err) {
       return res.status(500).json({ message: err.message });
