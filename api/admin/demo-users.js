@@ -28,8 +28,8 @@ const DEMO_ROLES = [
 
 // Pinned demo accounts per role. If an email is set here (or via env var) and the
 // user exists in the DB, that account is used as the default for the demo
-// launcher. Otherwise we silently fall back to the auto-pick logic (newest user
-// of that role with listings).
+// launcher. Otherwise we silently fall back to PINNED_DEMO_NAMES (name lookup)
+// or, last resort, the auto-pick logic (newest user of that role with listings).
 const PINNED_DEMO_EMAILS = {
   enterprise: process.env.DEMO_USER_ENTERPRISE_EMAIL || 'ramimof298@spotshops.com',
   // Marder Properties is our flagship demo agency; Alex Vangelatos is its
@@ -37,17 +37,36 @@ const PINNED_DEMO_EMAILS = {
   // scripts/create-marder-agents.js so they exist in every environment.
   agency: process.env.DEMO_USER_AGENCY_EMAIL || 'marder_agency@demo.com',
   agency_agent: process.env.DEMO_USER_AGENCY_AGENT_EMAIL || 'alex.vangelatos@marder-demo.com',
+  partner_bond: process.env.DEMO_USER_BOND_EMAIL || 'bondoriginator@ipm.com',
 };
 
-// Roles where the launcher should expose a dropdown so the admin can pick a
-// specific user to view as. The default (first option) is the pinned account
-// when one is configured for that role, otherwise the most recent / most
-// active user.
-const MULTI_OPTION_ROLES = new Set(['agency', 'agency_agent', 'buyer', 'seller', 'investor']);
-const MULTI_OPTION_LIMIT = 50;
+// Name-based pins for roles where we don't have a stable email address.
+// Matched case-insensitively against User.name. Used as a secondary lookup
+// after PINNED_DEMO_EMAILS and before the auto-pick fallback.
+const PINNED_DEMO_NAMES = {
+  buyer: 'Aamna Shahid',
+  investor: 'Jan Investor',
+};
+
+// Roles where the launcher exposes a dropdown so the admin can pick between
+// multiple curated accounts. Each entry is a small allowlist of email
+// addresses (case-insensitive). The first entry is the default option.
+//
+// Keeping this list short is critical because the entire roster (with minted
+// JWTs) is serialized into sessionStorage when demo mode starts, and large
+// payloads will hit the browser's storage quota. Roles not listed here use
+// the single-option path (no dropdown).
+const MULTI_OPTION_EMAILS = {
+  agency: ['marder_agency@demo.com', 'foros40214@bultoc.com'],
+};
+const MULTI_OPTION_ROLES = new Set(Object.keys(MULTI_OPTION_EMAILS));
 
 function normalizeEmail(e) {
   return String(e || '').trim().toLowerCase();
+}
+
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 module.exports = async (req, res) => {
@@ -65,57 +84,36 @@ module.exports = async (req, res) => {
 
     const results = {};
 
-    for (const dr of DEMO_ROLES) {
-      // Roles with multiple selectable options get a full list of accounts so
-      // the admin can pick any one from a dropdown in AdminDemo.js. The first
-      // item is treated as the default — pinned accounts are surfaced first,
-      // otherwise the most-active (most listings) account leads.
-      if (MULTI_OPTION_ROLES.has(dr.key)) {
-        const users = await User.find(dr.query)
-          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
-          .sort({ name: 1, _id: -1 })
-          .limit(MULTI_OPTION_LIMIT)
-          .lean();
-        if (!users.length) continue;
+    const SELECT_FIELDS = '_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone';
 
-        const pinnedEmail = normalizeEmail(PINNED_DEMO_EMAILS[dr.key]);
-        const options = await Promise.all(users.map(async (u) => {
+    for (const dr of DEMO_ROLES) {
+      // Multi-option roles: look up each email in the allowlist explicitly.
+      // We never query "all users with role X" anymore — that pattern is what
+      // historically blew the sessionStorage quota when the user table grew.
+      if (MULTI_OPTION_ROLES.has(dr.key)) {
+        const allowlist = (MULTI_OPTION_EMAILS[dr.key] || []).map(normalizeEmail).filter(Boolean);
+        if (!allowlist.length) continue;
+
+        const users = await User.find({ ...dr.query, email: { $in: allowlist } })
+          .select(SELECT_FIELDS)
+          .lean();
+
+        // Preserve the order declared in the allowlist (first = default).
+        const byEmail = new Map(users.map((u) => [normalizeEmail(u.email), u]));
+        const ordered = allowlist.map((e) => byEmail.get(e)).filter(Boolean);
+        if (!ordered.length) continue;
+
+        const options = await Promise.all(ordered.map(async (u, idx) => {
           const propCount = await Property.countDocuments({
             $or: [{ agentId: u._id }, { userId: u._id }],
           });
           return {
             ...u,
             _propertyCount: propCount,
-            _pinned: pinnedEmail && normalizeEmail(u.email) === pinnedEmail,
+            _pinned: idx === 0,
             _demoToken: mintDemoToken(u._id),
           };
         }));
-        // Pinned accounts always lead, then by listing count, then by name.
-        options.sort((a, b) => {
-          if (a._pinned && !b._pinned) return -1;
-          if (b._pinned && !a._pinned) return 1;
-          return (b._propertyCount || 0) - (a._propertyCount || 0);
-        });
-
-        // Safety net: if a pinned email is configured but the user wasn't in
-        // the first batch (e.g. very large user table), look it up explicitly
-        // and prepend it so Marder/Alex are always selectable.
-        if (pinnedEmail && !options.some((o) => normalizeEmail(o.email) === pinnedEmail)) {
-          const pinnedUser = await User.findOne({ ...dr.query, email: pinnedEmail })
-            .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
-            .lean();
-          if (pinnedUser) {
-            const propCount = await Property.countDocuments({
-              $or: [{ agentId: pinnedUser._id }, { userId: pinnedUser._id }],
-            });
-            options.unshift({
-              ...pinnedUser,
-              _propertyCount: propCount,
-              _pinned: true,
-              _demoToken: mintDemoToken(pinnedUser._id),
-            });
-          }
-        }
 
         results[dr.key] = {
           ...options[0],
@@ -125,12 +123,13 @@ module.exports = async (req, res) => {
         continue;
       }
 
+      // Single-option roles: try pinned email → pinned name → auto-pick.
       let picked = null;
 
       const pinnedEmail = normalizeEmail(PINNED_DEMO_EMAILS[dr.key]);
       if (pinnedEmail) {
         const pinnedUser = await User.findOne({ ...dr.query, email: pinnedEmail })
-          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
+          .select(SELECT_FIELDS)
           .lean();
         if (pinnedUser) {
           const propCount = await Property.countDocuments({
@@ -141,8 +140,24 @@ module.exports = async (req, res) => {
       }
 
       if (!picked) {
+        const pinnedName = PINNED_DEMO_NAMES[dr.key];
+        if (pinnedName) {
+          const nameRe = new RegExp(escapeRegex(pinnedName), 'i');
+          const pinnedUser = await User.findOne({ ...dr.query, name: nameRe })
+            .select(SELECT_FIELDS)
+            .lean();
+          if (pinnedUser) {
+            const propCount = await Property.countDocuments({
+              $or: [{ agentId: pinnedUser._id }, { userId: pinnedUser._id }],
+            });
+            picked = { ...pinnedUser, _propertyCount: propCount, _pinned: true };
+          }
+        }
+      }
+
+      if (!picked) {
         const users = await User.find(dr.query)
-          .select('_id name email role partnerType agencyName subscriptionPlan subscriptionStatus agentTier agentScore ipmScore photo agencyId branchName branchId bio phone')
+          .select(SELECT_FIELDS)
           .sort({ _id: -1 })
           .limit(20)
           .lean();
