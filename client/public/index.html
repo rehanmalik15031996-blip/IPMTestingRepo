@@ -32,10 +32,101 @@
     -->
     <title>IPM - International Property Market</title>
     <!-- Google Analytics loads only after cookie consent (see CookieConsent component) -->
+
+    <!-- Google Translate: hidden widget, controlled programmatically by language selector -->
+    <style>
+      /* Hide Google Translate toolbar, badge, and the persistent "Translated into" iframe at top */
+      .goog-te-banner-frame,
+      .goog-te-banner-frame.skiptranslate,
+      iframe.goog-te-banner-frame,
+      .goog-te-gadget,
+      #goog-gt-tt,
+      .goog-te-balloon-frame,
+      .goog-tooltip,
+      .goog-tooltip:hover,
+      .skiptranslate iframe[name="serviceTranslateBackend"] { display: none !important; visibility: hidden !important; }
+      /* Force body to its natural top position even when Google injects margin/transform */
+      html, body { top: 0 !important; position: static !important; }
+      body.translated-ltr,
+      body.translated-rtl { margin-top: 0 !important; top: 0 !important; }
+      /* Hide the "Translated by Google" tooltip and original-text wrapper */
+      .goog-te-menu-value:hover { text-decoration: none !important; }
+      font#goog-gt-original-text { display: none !important; }
+      /* Some Chrome versions inject a tooltip element on hover */
+      .goog-text-highlight { background: transparent !important; box-shadow: none !important; }
+    </style>
   </head>
   <body>
+    <!-- Hidden Google Translate element — do not remove -->
+    <div id="google_translate_element" style="display:none;visibility:hidden;position:absolute;"></div>
+
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
+    <!-- Google Translate init — must be after body opens -->
+    <script>
+      window.__ipmGoogleTranslateReady = false;
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({
+          pageLanguage: 'en',
+          autoDisplay: false,
+          gaTrack: false,
+        }, 'google_translate_element');
+        window.__ipmGoogleTranslateReady = true;
+        // If a language was queued before the script loaded, apply it now
+        if (window.__ipmPendingLang) {
+          window.__ipmApplyGoogleTranslate(window.__ipmPendingLang);
+        }
+      }
+
+      // Language code mapping (our codes → Google codes)
+      var GOOGLE_LANG_MAP = {
+        'zh': 'zh-CN', 'en': 'en',
+        'es': 'es', 'fr': 'fr', 'ar': 'ar',
+        'de': 'de', 'nl': 'nl', 'pt': 'pt',
+        'it': 'it', 'ja': 'ja', 'tr': 'tr',
+        'ru': 'ru', 'hi': 'hi'
+      };
+
+      window.__ipmApplyGoogleTranslate = function(lang) {
+        if (!window.__ipmGoogleTranslateReady) {
+          window.__ipmPendingLang = lang;
+          return;
+        }
+        var googleLang = GOOGLE_LANG_MAP[lang] || lang;
+        if (lang === 'en') {
+          // Restore original English
+          var restoreEl = document.querySelector('.goog-te-banner-frame');
+          if (restoreEl) {
+            try {
+              var restoreBtn = restoreEl.contentDocument
+                ? restoreEl.contentDocument.querySelector('[id="restore"]')
+                : null;
+              if (restoreBtn) restoreBtn.click();
+            } catch(e) {}
+          }
+          // Clear cookie and reload to fully restore
+          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + location.hostname + ';';
+          return;
+        }
+        // Set cookie so translation persists across SPA navigation
+        document.cookie = 'googtrans=/en/' + googleLang + '; path=/;';
+        document.cookie = 'googtrans=/en/' + googleLang + '; path=/; domain=' + location.hostname + ';';
+        // Trigger Google Translate via its hidden select element
+        var tryTranslate = function(attempts) {
+          var select = document.querySelector('.goog-te-combo');
+          if (select) {
+            select.value = googleLang;
+            select.dispatchEvent(new Event('change'));
+          } else if (attempts > 0) {
+            setTimeout(function() { tryTranslate(attempts - 1); }, 200);
+          }
+        };
+        tryTranslate(10);
+      };
+    </script>
+    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

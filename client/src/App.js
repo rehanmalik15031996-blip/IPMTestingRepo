@@ -336,7 +336,7 @@ const LayoutInner = ({ children }) => {
                                         .join(' ')}
                                     aria-current={location.pathname === '/our-services' ? 'page' : undefined}
                                 >
-                                    Services
+                                    {t('nav.services')}
                                 </Link>
                                 <Link
                                     to="/pricing"
@@ -348,7 +348,7 @@ const LayoutInner = ({ children }) => {
                                         .join(' ')}
                                     aria-current={location.pathname === '/pricing' ? 'page' : undefined}
                                 >
-                                    Pricing
+                                    {t('nav.pricing')}
                                 </Link>
                                 <Link
                                     to="/our-services#services-section-agent"
@@ -363,7 +363,7 @@ const LayoutInner = ({ children }) => {
                                 )}
                             </div>
                             <div className="nav-landing-trailing">
-                                {user && <NavSettingsDropdown />}
+                                <NavSettingsDropdown />
                                 {user ? (
                                     <div
                                         className="user-dropdown-wrapper"
@@ -402,7 +402,7 @@ const LayoutInner = ({ children }) => {
                                             {t('nav.signUp')}
                                         </Link>
                                         <Link to="/login" className="nav-landing-btn-myipm">
-                                            myIPM <span aria-hidden>→</span>
+                                            {t('nav.myIpm')} <span aria-hidden>→</span>
                                         </Link>
                                     </>
                                 )}
@@ -410,7 +410,7 @@ const LayoutInner = ({ children }) => {
                                     type="button"
                                     className="nav-mobile-toggle"
                                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                                    aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                                    aria-label={mobileMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
                                 >
                                     <i className={mobileMenuOpen ? 'fas fa-times' : 'fas fa-bars'} />
                                 </button>
@@ -474,11 +474,11 @@ const LayoutInner = ({ children }) => {
 
                     {/* RIGHT: Desktop actions + Mobile hamburger */}
                     <div className="nav-right" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        {user && <NavSettingsDropdown />}
+                        <NavSettingsDropdown />
                         {!isLandingNav && (
                             <>
                                 <Link to="/our-services" className="btn-outline" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <i className="fas fa-briefcase"></i> Our Services
+                                    <i className="fas fa-briefcase"></i> {t('nav.ourServices')}
                                 </Link>
                                 {user && (
                                     <Link to="/news" className="btn-outline" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -623,7 +623,7 @@ const LayoutInner = ({ children }) => {
             {/* Mobile nav menu overlay (public pages, not dashboard); home uses in-hero drawer */}
             {showPublicLayout && !isDashboardLayout && !hideGlobalLandingNavForHome && (
                 <div className={`nav-mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
-                    {user && <NavSettingsDropdown />}
+                    <NavSettingsDropdown />
                     {user ? (
                         <>
                             <Link to={user.role && (user.role.toLowerCase() === 'agent' || user.role.toLowerCase() === 'independent_agent' || user.role.toLowerCase() === 'agency_agent') ? '/agent-dashboard' : '/dashboard'}>
@@ -636,10 +636,10 @@ const LayoutInner = ({ children }) => {
                                 <i className="fas fa-home"></i> {t('nav.home')}
                             </Link>
                             <Link to="/our-services">
-                                <i className="fas fa-briefcase"></i> Our Services
+                                <i className="fas fa-briefcase"></i> {t('nav.ourServices')}
                             </Link>
                             <Link to="/pricing">
-                                <i className="fas fa-tag"></i> Pricing
+                                <i className="fas fa-tag"></i> {t('nav.pricing')}
                             </Link>
                             <Link to="/our-services#services-section-agent">
                                 <i className="fas fa-graduation-cap"></i> {t('nav.ipmAcademy')}
@@ -658,10 +658,10 @@ const LayoutInner = ({ children }) => {
                                 <i className="fas fa-home"></i> {t('nav.home')}
                             </Link>
                             <Link to="/our-services">
-                                <i className="fas fa-briefcase"></i> Our Services
+                                <i className="fas fa-briefcase"></i> {t('nav.ourServices')}
                             </Link>
                             <Link to="/pricing">
-                                <i className="fas fa-tag"></i> Pricing
+                                <i className="fas fa-tag"></i> {t('nav.pricing')}
                             </Link>
                             <Link to="/our-services#services-section-agent">
                                 <i className="fas fa-graduation-cap"></i> {t('nav.ipmAcademy')}
@@ -690,6 +690,22 @@ const LayoutInner = ({ children }) => {
 
             {isDashboardLayout && <GuidedTour />}
             <MobileFAB />
+
+            {/* Floating language picker — always available, even on auth/full-screen pages
+                where the main nav is hidden (login, signup, password reset, etc.) */}
+            {!showPublicLayout && (
+                <div
+                    className="ipm-floating-lang"
+                    style={{
+                        position: 'fixed',
+                        top: 16,
+                        right: 16,
+                        zIndex: 9999,
+                    }}
+                >
+                    <NavSettingsDropdown />
+                </div>
+            )}
         </>
     );
 };

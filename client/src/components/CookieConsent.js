@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const STORAGE_KEY = 'ipm_cookie_consent';
 const GA_ID = 'G-VESJC0EX65';
@@ -55,6 +56,7 @@ function loadGoogleAnalytics() {
 }
 
 const CookieConsent = () => {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -112,9 +114,9 @@ const CookieConsent = () => {
       }}
     >
       <p style={{ margin: 0, flex: '1 1 280px', maxWidth: '560px' }}>
-        We only use essential cookies by default. Optional analytics cookies are enabled only if you accept. You can reject non-essential cookies and still use the website. See our{' '}
+        {t('cookies.message')}{' '}
         <Link to="/privacy" style={{ color: '#7dd3fc', textDecoration: 'underline' }}>
-          Privacy Policy
+          {t('cookies.privacyPolicy')}
         </Link>
         .
       </p>
@@ -132,7 +134,7 @@ const CookieConsent = () => {
             cursor: 'pointer',
           }}
         >
-          Reject non-essential
+          {t('cookies.reject')}
         </button>
         <button
           type="button"
@@ -147,7 +149,7 @@ const CookieConsent = () => {
             cursor: 'pointer',
           }}
         >
-          Accept analytics
+          {t('cookies.accept')}
         </button>
       </div>
     </div>

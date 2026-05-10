@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../config/api';
 import CommsPanel from './CommsPanel';
 import NotificationPanel from './NotificationPanel';
+import NavSettingsDropdown from './NavSettingsDropdown';
 import downloadDashboardPdf from '../utils/downloadDashboardPdf';
 import { useSidebar } from '../context/SidebarContext';
 
@@ -165,6 +166,7 @@ const DashboardSplitTopBar = ({ user, searchValue, onSearchChange, onLeadSearchS
                         <i className="fas fa-comment-dots" />
                         {chatUnread > 0 && <span style={RED_DOT} />}
                     </button>
+                    <NavSettingsDropdown />
                 </div>
                 <div className="dash-split-topbar__actions">
                     <button

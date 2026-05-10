@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../config/api';
 import Sidebar from '../components/Sidebar';
 import LogoLoading from '../components/LogoLoading';
@@ -11,6 +12,7 @@ import { brand, card, sectionTitle, KpiSection, pageShell, darkTable, tealPill }
 const barColors = ['#4CB5AE', '#C7A35A', '#5BB38D', '#A47837', '#C95B53'];
 
 export default function EnterprisePerformance() {
+    const { t } = useTranslation();
     const isMobile = useIsMobile();
     const { formatAssetValueCompact } = usePreferences();
     const [searchParams] = useSearchParams();
@@ -39,7 +41,7 @@ export default function EnterprisePerformance() {
                 <Sidebar />
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh' }}>
                     <main className="dashboard-main" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', ...shell.main }}>
-                        <LogoLoading message="Loading performance data..." style={{ minHeight: '60vh' }} />
+                        <LogoLoading message={t('enterprise.loadingPerformance')} style={{ minHeight: '60vh' }} />
                     </main>
                 </div>
             </div>
@@ -53,11 +55,11 @@ export default function EnterprisePerformance() {
         const totalBranches = rows.reduce((a, r) => a + r.branches, 0);
         const totalCountryAgents = rows.reduce((a, r) => a + r.agents, 0);
         const kpis = [
-            { label: 'Franchises', value: String(s.agencyCount || 0), delta: `${rows.length} countr${rows.length !== 1 ? 'ies' : 'y'}`, deltaMuted: true },
-            { label: 'Branches', value: String(totalBranches), delta: `Across network`, deltaMuted: true },
-            { label: 'Active Agents', value: String(totalCountryAgents || s.totalAgents || 0), delta: totalCountryAgents > 0 ? 'Active' : '—', deltaMuted: true },
-            { label: 'GTV (MTD)', value: formatAssetValueCompact(s.totalRevenue || 0), delta: s.totalRevenue > 0 ? 'Revenue to date' : '—', deltaMuted: true },
-            { label: 'Active Listings', value: String(s.activeListings || s.totalListings || 0), delta: s.newListingsLast30 > 0 ? `+${s.newListingsLast30} last 30d` : '—' },
+            { label: t('enterprise.franchises'), value: String(s.agencyCount || 0), delta: `${rows.length} ${rows.length !== 1 ? t('newDev.country') + 's' : t('newDev.country')}`, deltaMuted: true },
+            { label: t('enterprise.branches'), value: String(totalBranches), delta: t('enterprise.acrossNetwork'), deltaMuted: true },
+            { label: t('enterprise.activeAgents'), value: String(totalCountryAgents || s.totalAgents || 0), delta: totalCountryAgents > 0 ? t('enterprise.active') : '—', deltaMuted: true },
+            { label: t('enterprise.gtvMtd'), value: formatAssetValueCompact(s.totalRevenue || 0), delta: s.totalRevenue > 0 ? t('enterprise.revenueToDate') : '—', deltaMuted: true },
+            { label: t('enterprise.activeListings'), value: String(s.activeListings || s.totalListings || 0), delta: s.newListingsLast30 > 0 ? `+${s.newListingsLast30} ${t('enterprise.last30d')}` : '—' },
         ];
         const maxGtv = Math.max(...rows.map((x) => x.gtv), 1);
 
@@ -68,10 +70,10 @@ export default function EnterprisePerformance() {
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: 12, marginBottom: 12 }}>
                     {/* Province / Country GTV */}
                     <article style={{ ...card, padding: 12 }}>
-                        <h3 style={sectionTitle}>Province GTV</h3>
+                        <h3 style={sectionTitle}>{t('enterprise.provinceGtv')}</h3>
                         <div style={{ marginTop: 12, maxHeight: 240, overflowY: 'auto' }}>
                             {rows.length === 0 ? (
-                                <p style={{ color: brand.muted, fontSize: 11 }}>No data yet.</p>
+                                <p style={{ color: brand.muted, fontSize: 11 }}>{t('enterprise.noDataYet')}</p>
                             ) : rows.map((r, i) => {
                                 const pct = Math.min(100, Math.round((r.gtv / maxGtv) * 100));
                                 const displayName = countryDisplayName(r.country);
@@ -94,8 +96,8 @@ export default function EnterprisePerformance() {
                     {/* Franchise Performance — dark table */}
                     <article style={{ ...card, padding: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <h3 style={sectionTitle}>Franchise Performance</h3>
-                            <span style={tealPill}>{rows.length} market{rows.length !== 1 ? 's' : ''}</span>
+                            <h3 style={sectionTitle}>{t('enterprise.franchisePerformance')}</h3>
+                            <span style={tealPill}>{rows.length} {rows.length !== 1 ? t('enterprise.markets') : t('enterprise.market')}</span>
                         </div>
                         <div style={{ ...darkTable.wrapper, maxHeight: 280, overflowY: 'auto' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.55fr 0.3fr 0.4fr 0.45fr 0.56fr 0.34fr 0.42fr', columnGap: 8, rowGap: 4 }}>
@@ -120,7 +122,7 @@ export default function EnterprisePerformance() {
                                             </div>
                                             <div style={{ ...darkTable.text, textAlign: 'right' }}>{f.propertiesSold}</div>
                                             <div style={{ textAlign: 'right' }}>
-                                                <button type="button" style={darkTable.drillIn}>Drill In</button>
+                                                <button type="button" style={darkTable.drillIn}>{t('enterprise.drillIn')}</button>
                                             </div>
                                         </React.Fragment>
                                     );
@@ -139,25 +141,25 @@ export default function EnterprisePerformance() {
         const combinedRate = defaults.branchToFranchise + defaults.franchiseToCountry + defaults.countryToHq;
         const totalRoyaltiesDue = (s.totalRevenue || 0) * (combinedRate / 100);
         const kpis = [
-            { label: 'Branches', value: String(rows.reduce((a, r) => a + r.branches, 0)), delta: `${rows.length} franchise${rows.length !== 1 ? 's' : ''}`, deltaMuted: true },
-            { label: 'Agents', value: String(s.totalAgents || 0), delta: s.totalAgents > 0 ? 'Active' : '—', deltaMuted: true },
-            { label: 'GTV (MTD)', value: formatAssetValueCompact(s.totalRevenue || 0), delta: s.totalRevenue > 0 ? 'Revenue to date' : '—', deltaMuted: true },
-            { label: 'Active Listings', value: String(s.activeListings || s.totalListings || 0), delta: s.newListingsLast30 > 0 ? `+${s.newListingsLast30} last 30d` : '—' },
-            { label: 'Royalties Due', value: formatAssetValueCompact(totalRoyaltiesDue), delta: `${combinedRate}% of GTV`, deltaTone: 'yellow' },
+            { label: t('enterprise.branches'), value: String(rows.reduce((a, r) => a + r.branches, 0)), delta: `${rows.length} ${rows.length !== 1 ? t('enterprise.franchises').toLowerCase() : t('sidebar.franchise').toLowerCase()}`, deltaMuted: true },
+            { label: t('enterprise.agents'), value: String(s.totalAgents || 0), delta: s.totalAgents > 0 ? t('enterprise.active') : '—', deltaMuted: true },
+            { label: t('enterprise.gtvMtd'), value: formatAssetValueCompact(s.totalRevenue || 0), delta: s.totalRevenue > 0 ? t('enterprise.revenueToDate') : '—', deltaMuted: true },
+            { label: t('enterprise.activeListings'), value: String(s.activeListings || s.totalListings || 0), delta: s.newListingsLast30 > 0 ? `+${s.newListingsLast30} ${t('enterprise.last30d')}` : '—' },
+            { label: t('enterprise.royaltiesDue'), value: formatAssetValueCompact(totalRoyaltiesDue), delta: `${combinedRate}% ${t('enterprise.ofGtv')}`, deltaTone: 'yellow' },
         ];
 
         return (
             <>
-                <KpiSection isMobile={isMobile} cards={kpis} valueColors={{ 'Royalties Due': brand.gold }} />
+                <KpiSection isMobile={isMobile} cards={kpis} valueColors={{ [t('enterprise.royaltiesDue')]: brand.gold }} />
 
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: 12, marginBottom: 12 }}>
                     {/* Branch Leader Board */}
                     <div>
                         <article style={{ ...card, padding: 12, marginBottom: 12 }}>
-                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>Branch Leader Board</h3>
+                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>{t('enterprise.branchLeaderBoard')}</h3>
                             <div style={{ marginTop: 10, maxHeight: 200, overflowY: 'auto' }}>
                                 {rows.length === 0 ? (
-                                    <p style={{ color: brand.muted, fontSize: 11 }}>No franchises yet.</p>
+                                    <p style={{ color: brand.muted, fontSize: 11 }}>{t('enterprise.noFranchisesYet')}</p>
                                 ) : rows.map((f, i) => (
                                     <div key={f._id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${brand.borderRow}`, fontSize: 11 }}>
                                         <div style={{ width: 22, height: 22, borderRadius: '50%', background: i === 0 ? brand.gold : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : brand.pageBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 9, color: i < 3 ? '#fff' : brand.muted, flexShrink: 0 }}>
@@ -173,10 +175,10 @@ export default function EnterprisePerformance() {
                             </div>
                         </article>
                         <article style={{ ...card, padding: 12 }}>
-                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>Commission Engine</h3>
+                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>{t('enterprise.commissionEngine')}</h3>
                             <div style={{ marginTop: 10, maxHeight: 160, overflowY: 'auto' }}>
                                 {(data?.agentRows || []).filter((a) => a.status === 'active').length === 0 ? (
-                                    <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', color: brand.muted, fontSize: 10 }}>No active agents yet.</div>
+                                    <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', color: brand.muted, fontSize: 10 }}>{t('enterprise.noActiveAgentsYet')}</div>
                                 ) : (data?.agentRows || []).filter((a) => a.status === 'active').slice(0, 10).map((a, i) => (
                                     <div key={a._id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${brand.borderRow}`, fontSize: 10 }}>
                                         <div>
@@ -193,15 +195,21 @@ export default function EnterprisePerformance() {
                     {/* Branch Performance */}
                     <article style={{ ...card, padding: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <h3 style={sectionTitle}>Branch Performance</h3>
-                            <span style={tealPill}>{rows.length} franchise{rows.length !== 1 ? 's' : ''}</span>
+                            <h3 style={sectionTitle}>{t('enterprise.branchPerformance')}</h3>
+                            <span style={tealPill}>{rows.length} {rows.length !== 1 ? t('enterprise.franchises').toLowerCase() : t('sidebar.franchise').toLowerCase()}</span>
                         </div>
                         <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, minWidth: 400 }}>
                                 <thead style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
                                     <tr style={{ borderBottom: `2px solid ${brand.border}` }}>
-                                        {['Franchise', 'Agents', 'Leads', 'GTV', 'Sold'].map((h) => (
-                                            <th key={h} style={{ textAlign: h === 'Franchise' ? 'left' : 'right', padding: '8px 6px', color: brand.muted, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                                        {[
+                                            { key: 'franchise', label: t('sidebar.franchise') },
+                                            { key: 'agents', label: t('enterprise.agents') },
+                                            { key: 'leads', label: t('enterprise.leads') },
+                                            { key: 'gtv', label: t('enterprise.gtv') },
+                                            { key: 'sold', label: t('enterprise.sold') },
+                                        ].map((h) => (
+                                            <th key={h.key} style={{ textAlign: h.key === 'franchise' ? 'left' : 'right', padding: '8px 6px', color: brand.muted, fontWeight: 700, textTransform: 'uppercase' }}>{h.label}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -231,26 +239,26 @@ export default function EnterprisePerformance() {
         const totalBranchAgents = rows.reduce((a, r) => a + r.agents, 0);
         const commissionDue = (s.totalRevenue || 0) * (branchRate / 100);
         const kpis = [
-            { label: 'Branch Agents', value: String(totalBranchAgents), delta: totalBranchAgents > 0 ? 'Active' : '—', deltaTone: 'success' },
-            { label: 'Active Listings', value: String(s.activeListings || s.totalListings || 0), delta: 'Across all branches', deltaMuted: true },
-            { label: 'Agents', value: String(s.totalAgents || 0), delta: s.totalAgents > 0 ? 'Network total' : '—', deltaMuted: true },
-            { label: 'Pipeline Leads', value: String(s.totalLeads || 0), delta: s.totalLeads > 0 ? 'Active' : '—', danger: (s.totalLeads || 0) < 5 },
-            { label: 'GTV (MTD)', value: formatAssetValueCompact(s.totalRevenue || 0), delta: s.totalRevenue > 0 ? 'Revenue to date' : '—', deltaTone: 'teal' },
-            { label: 'Commission Due (MTD)', value: formatAssetValueCompact(commissionDue), delta: `${branchRate}% of GTV`, deltaTone: 'yellow' },
+            { label: t('enterprise.branchAgents'), value: String(totalBranchAgents), delta: totalBranchAgents > 0 ? t('enterprise.active') : '—', deltaTone: 'success' },
+            { label: t('enterprise.activeListings'), value: String(s.activeListings || s.totalListings || 0), delta: t('enterprise.acrossNetwork'), deltaMuted: true },
+            { label: t('enterprise.agents'), value: String(s.totalAgents || 0), delta: s.totalAgents > 0 ? t('enterprise.networkTotal') : '—', deltaMuted: true },
+            { label: t('enterprise.pipelineLeads'), value: String(s.totalLeads || 0), delta: s.totalLeads > 0 ? t('enterprise.active') : '—', danger: (s.totalLeads || 0) < 5 },
+            { label: t('enterprise.gtvMtd'), value: formatAssetValueCompact(s.totalRevenue || 0), delta: s.totalRevenue > 0 ? t('enterprise.revenueToDate') : '—', deltaTone: 'teal' },
+            { label: t('enterprise.commissionDue'), value: formatAssetValueCompact(commissionDue), delta: `${branchRate}% ${t('enterprise.ofGtv')}`, deltaTone: 'yellow' },
         ];
 
         return (
             <>
-                <KpiSection isMobile={isMobile} cards={kpis} valueColors={{ 'Commission Due (MTD)': brand.gold }} />
+                <KpiSection isMobile={isMobile} cards={kpis} valueColors={{ [t('enterprise.commissionDue')]: brand.gold }} />
 
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 2fr', gap: 12, marginBottom: 12 }}>
                     {/* Left: Listing Distribution + Reporting Hierarchy */}
                     <div>
                         <article style={{ ...card, padding: 12, marginBottom: 12 }}>
-                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>Listing Distribution</h3>
+                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>{t('enterprise.listingDistribution')}</h3>
                             <div style={{ marginTop: 10, maxHeight: 200, overflowY: 'auto' }}>
                                 {rows.length === 0 ? (
-                                    <p style={{ color: brand.muted, fontSize: 11 }}>No branches yet.</p>
+                                    <p style={{ color: brand.muted, fontSize: 11 }}>{t('enterprise.noBranchesYet')}</p>
                                 ) : rows.map((r) => {
                                     const maxAgents = Math.max(...rows.map((x) => x.agents), 1);
                                     const pct = Math.min(100, (r.agents / maxAgents) * 100);
@@ -269,7 +277,7 @@ export default function EnterprisePerformance() {
                             </div>
                         </article>
                         <article style={{ ...card, padding: 12 }}>
-                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>Reporting Hierarchy</h3>
+                            <h3 style={{ ...sectionTitle, color: brand.mutedLight }}>{t('enterprise.reportingHierarchy')}</h3>
                             <div style={{ marginTop: 10, maxHeight: 220, overflowY: 'auto' }}>
                                 {(data?.performanceByFranchise || []).map((f, fi) => (
                                     <div key={f._id || fi} style={{ marginBottom: 12 }}>
@@ -296,15 +304,21 @@ export default function EnterprisePerformance() {
                     {/* Right: Agent Roster */}
                     <article style={{ ...card, padding: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <h3 style={sectionTitle}>Agent Roster</h3>
-                            <span style={tealPill}>{rows.length} branch{rows.length !== 1 ? 'es' : ''}</span>
+                            <h3 style={sectionTitle}>{t('enterprise.agentRoster')}</h3>
+                            <span style={tealPill}>{rows.length} {rows.length !== 1 ? t('enterprise.branches').toLowerCase() : t('sidebar.branch').toLowerCase()}</span>
                         </div>
                         <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, minWidth: 400 }}>
                                 <thead style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
                                     <tr style={{ borderBottom: `2px solid ${brand.border}` }}>
-                                        {['Branch', 'Franchise', 'Agents', 'Sold', 'GTV'].map((h) => (
-                                            <th key={h} style={{ textAlign: h === 'Branch' || h === 'Franchise' ? 'left' : 'right', padding: '8px 6px', color: brand.muted, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                                        {[
+                                            { key: 'branch', label: t('sidebar.branch') },
+                                            { key: 'franchise', label: t('sidebar.franchise') },
+                                            { key: 'agents', label: t('enterprise.agents') },
+                                            { key: 'sold', label: t('enterprise.sold') },
+                                            { key: 'gtv', label: t('enterprise.gtv') },
+                                        ].map((h) => (
+                                            <th key={h.key} style={{ textAlign: h.key === 'branch' || h.key === 'franchise' ? 'left' : 'right', padding: '8px 6px', color: brand.muted, fontWeight: 700, textTransform: 'uppercase' }}>{h.label}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -335,9 +349,9 @@ export default function EnterprisePerformance() {
                     <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                         <header style={{ marginBottom: 14 }}>
                             <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: brand.text }}>
-                                {view === 'country' ? 'Performance by Country' : view === 'franchise' ? 'Performance by Franchise' : 'Performance by Branch'}
+                                {view === 'country' ? t('enterprise.performanceByCountry') : view === 'franchise' ? t('enterprise.performanceByFranchise') : t('enterprise.performanceByBranch')}
                             </h2>
-                            <p style={{ color: brand.muted, margin: '2px 0 0', fontSize: 11 }}>Use the sidebar to switch between Country, Franchise, and Branch views.</p>
+                            <p style={{ color: brand.muted, margin: '2px 0 0', fontSize: 11 }}>{t('enterprise.useTheSidebar')}</p>
                         </header>
 
                         {view === 'country' && renderCountryView()}

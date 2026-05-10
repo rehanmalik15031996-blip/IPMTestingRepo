@@ -40,6 +40,8 @@ export function convertCurrency(amount, fromCurrency, toCurrency) {
   return (Number(amount) / from) * to;
 }
 
+const RTL_LANGS = new Set(['ar', 'he', 'ur', 'fa']);
+
 const PreferencesContext = createContext(null);
 
 export function PreferencesProvider({ children }) {
@@ -102,7 +104,43 @@ export function PreferencesProvider({ children }) {
   const setLanguage = useCallback((lang) => {
     setPrefsState((p) => ({ ...p, language: lang }));
     i18n.changeLanguage(lang);
-  }, []);
+    // Apply RTL direction to the document for right-to-left languages
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang;
+    }
+    // Drive Google Translate via cookie + page reload — by far the most reliable approach.
+    // Google's TranslateElement reads the googtrans cookie on initial load and translates
+    // the entire DOM (including SPA re-renders later via MutationObserver). Trying to
+    // trigger it via a `change` event on the hidden <select> is fragile and sometimes silently fails.
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        const host = window.location.hostname;
+        if (lang === 'en') {
+          // Clear the Google Translate cookie so we go back to English on reload
+          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${host};`;
+        } else {
+          const GOOGLE_LANG_MAP = {
+            zh: 'zh-CN', en: 'en', es: 'es', fr: 'fr', ar: 'ar',
+            de: 'de', nl: 'nl', pt: 'pt', it: 'it', ja: 'ja',
+            tr: 'tr', ru: 'ru', hi: 'hi',
+          };
+          const googleLang = GOOGLE_LANG_MAP[lang] || lang;
+          document.cookie = `googtrans=/en/${googleLang}; path=/;`;
+          document.cookie = `googtrans=/en/${googleLang}; path=/; domain=${host};`;
+        }
+        // One clean reload — Google Translate kicks in instantly on the next page load,
+        // including all dashboards, signup flows, dynamic content, etc.
+        window.location.reload();
+      } catch (e) {
+        // Fallback: at least try the in-page widget approach
+        if (typeof window.__ipmApplyGoogleTranslate === 'function') {
+          window.__ipmApplyGoogleTranslate(lang);
+        }
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const setCurrency = useCallback((curr) => {
     setPrefsState((p) => {
       const next = { ...p, currency: curr };
@@ -126,6 +164,17 @@ export function PreferencesProvider({ children }) {
   }, [persistToServer]);
 
   const lang = prefs.language || 'en';
+
+  // Apply RTL direction on every language change (incl. first mount).
+  // The Google Translate cookie set in setLanguage drives all DOM translation on subsequent
+  // page loads via Google's TranslateElement, so no extra trigger is needed here.
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang;
+    }
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const currency = prefs.currency || 'USD';
   const units = prefs.units || 'sqft';
   const priceDisplayMode = prefs.priceDisplayMode || 'gross';
@@ -149,7 +198,12 @@ export function PreferencesProvider({ children }) {
     if (num === 0) return '—';
     const fromCurrency = opts.fromCurrency || 'USD';
     const converted = convertCurrency(num, fromCurrency, currency);
-    const formatter = new Intl.NumberFormat(lang === 'ar' ? 'ar-AE' : lang === 'es' ? 'es-ES' : lang === 'fr' ? 'fr-FR' : 'en-US', {
+    const localeMap = {
+      en: 'en-US', es: 'es-ES', fr: 'fr-FR', ar: 'ar-AE',
+      de: 'de-DE', nl: 'nl-NL', pt: 'pt-PT', it: 'it-IT',
+      zh: 'zh-CN', ja: 'ja-JP', tr: 'tr-TR', ru: 'ru-RU', hi: 'hi-IN',
+    };
+    const formatter = new Intl.NumberFormat(localeMap[lang] || 'en-US', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,

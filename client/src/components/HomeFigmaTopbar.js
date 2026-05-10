@@ -74,7 +74,7 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
 
   const DrawerSection = () => (
     <>
-      {user && <NavSettingsDropdown />}
+      <NavSettingsDropdown />
       {user ? (
         <>
           <Link to={dashPath} onClick={() => setMobileOpen(false)}>
@@ -87,10 +87,10 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
             <i className="fas fa-home" /> {t('nav.home')}
           </Link>
           <Link to="/our-services" onClick={() => setMobileOpen(false)}>
-            <i className="fas fa-briefcase" /> Our Services
+            <i className="fas fa-briefcase" /> {t('nav.ourServices')}
           </Link>
           <Link to="/pricing" onClick={() => setMobileOpen(false)}>
-            <i className="fas fa-tag" /> Pricing
+            <i className="fas fa-tag" /> {t('nav.pricing')}
           </Link>
           <Link to="/our-services#services-section-agent" onClick={() => setMobileOpen(false)}>
             <i className="fas fa-graduation-cap" /> {t('nav.ipmAcademy')}
@@ -106,10 +106,10 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
             <i className="fas fa-home" /> {t('nav.home')}
           </Link>
           <Link to="/our-services" onClick={() => setMobileOpen(false)}>
-            <i className="fas fa-briefcase" /> Our Services
+            <i className="fas fa-briefcase" /> {t('nav.ourServices')}
           </Link>
           <Link to="/pricing" onClick={() => setMobileOpen(false)}>
-            <i className="fas fa-tag" /> Pricing
+            <i className="fas fa-tag" /> {t('nav.pricing')}
           </Link>
           <Link to="/our-services#services-section-agent" onClick={() => setMobileOpen(false)}>
             <i className="fas fa-graduation-cap" /> {t('nav.ipmAcademy')}
@@ -142,21 +142,21 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
               </div>
 
               <Link to="/our-services" className={barLinkClass('/our-services')}>
-                Services
+                {t('nav.services')}
               </Link>
               <Link to="/pricing" className={barLinkClass('/pricing')}>
-                Pricing
+                {t('nav.pricing')}
               </Link>
 
               {!user && (
                 <Link to="/signup" className={barLinkClass('/signup')}>
-                  SignUp
+                  {t('nav.signUp')}
                 </Link>
               )}
 
               {!user ? (
                 <Link to="/login" className="home-figma__cta-myipm">
-                  MyIPM
+                  {t('nav.myIpm')}
                 </Link>
               ) : (
                 <div
@@ -191,7 +191,7 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
               <button
                 type="button"
                 className="home-figma__menu-toggle"
-                aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+                aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
                 onClick={() => setMobileOpen((o) => !o)}
               >
                 {mobileOpen ? (
