@@ -33,9 +33,28 @@
     <title>IPM - International Property Market</title>
     <!-- Google Analytics loads only after cookie consent (see CookieConsent component) -->
 
+    <!-- Set <html lang> from stored preference at the earliest possible moment so Chrome's
+         built-in translation feature doesn't detect a "foreign" page and pop up its own
+         translate prompt (separate from our Google Translate widget). -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('ipm_user_preferences');
+          if (!raw) return;
+          var p = JSON.parse(raw);
+          if (p && p.language) {
+            document.documentElement.lang = p.language;
+            var RTL = { ar: 1, he: 1, ur: 1, fa: 1 };
+            if (RTL[p.language]) document.documentElement.dir = 'rtl';
+          }
+        } catch (_) {}
+      })();
+    </script>
+
     <!-- Google Translate: hidden widget, controlled programmatically by language selector -->
     <style>
-      /* Hide Google Translate toolbar, badge, and the persistent "Translated into" iframe at top */
+      /* Hide only the visible "Translated into ..." top banner and tooltips.
+         Do NOT hide Google's internal worker iframes (they are required for translation to function). */
       .goog-te-banner-frame,
       .goog-te-banner-frame.skiptranslate,
       iframe.goog-te-banner-frame,
@@ -43,12 +62,23 @@
       #goog-gt-tt,
       .goog-te-balloon-frame,
       .goog-tooltip,
-      .goog-tooltip:hover,
-      .skiptranslate iframe[name="serviceTranslateBackend"] { display: none !important; visibility: hidden !important; }
+      .goog-tooltip:hover {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
       /* Force body to its natural top position even when Google injects margin/transform */
-      html, body { top: 0 !important; position: static !important; }
-      body.translated-ltr,
-      body.translated-rtl { margin-top: 0 !important; top: 0 !important; }
+      html { margin-top: 0 !important; }
+      html body,
+      html body.translated-ltr,
+      html body.translated-rtl {
+        top: 0 !important;
+        margin-top: 0 !important;
+        position: static !important;
+      }
       /* Hide the "Translated by Google" tooltip and original-text wrapper */
       .goog-te-menu-value:hover { text-decoration: none !important; }
       font#goog-gt-original-text { display: none !important; }
@@ -62,6 +92,129 @@
 
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+
+    <!-- Visually suppress only the Google Translate top "Translated into..." banner.
+         IMPORTANT: do NOT remove Google's worker iframes from the DOM — they are required
+         for translation to function. We hide ONLY the banner element (and its wrapper if any)
+         and reset the body offset Google applies.
+         Strategy: identify the banner by POSITION (an iframe pinned to the top of the viewport
+         that belongs to Google's translate widget) rather than by class name, because Google
+         frequently changes the obfuscated class names. Worker iframes are positioned off-screen
+         (e.g. left: -10000px) so they don't match the "at top of viewport" predicate.
+         All writes are IDEMPOTENT so the MutationObserver never retriggers itself. -->
+    <script>
+      (function () {
+        console.log('[IPM] Google Translate banner hider v4 loaded');
+        var HIDE_CSS = 'display: none !important; visibility: hidden !important; height: 0 !important; max-height: 0 !important; min-height: 0 !important; opacity: 0 !important; pointer-events: none !important; overflow: hidden !important;';
+
+        function ensureHidden(el) {
+          if (!el) return;
+          if (el.style.display === 'none' && el.style.visibility === 'hidden') return;
+          try { el.style.cssText = HIDE_CSS; } catch (_) {}
+        }
+
+        // A "translate-related" element is anything that belongs to Google's translate widget:
+        // either has `skiptranslate` class, a `goog-te-*` class, or is the rendered banner.
+        function isTranslateRelated(el) {
+          if (!el || !el.classList) return false;
+          if (el.classList.contains('skiptranslate')) return true;
+          for (var i = 0; i < el.classList.length; i++) {
+            var c = el.classList[i];
+            if (c.indexOf('goog-te-') === 0 || c.indexOf('VIpgJd-') === 0) return true;
+          }
+          return false;
+        }
+
+        // The visible banner is positioned FIXED at the top of the viewport with full-ish width.
+        // Translation worker iframes are position:absolute and pushed off-screen, so they
+        // will NEVER match this predicate — safe to hide anything that does.
+        function isAtTopOfViewport(el) {
+          try {
+            var cs = window.getComputedStyle(el);
+            if (cs.position !== 'fixed') return false; // workers use absolute, not fixed
+            var r = el.getBoundingClientRect();
+            return r.top <= 5 && r.top >= -5 &&
+                   r.height > 10 && r.height < 120 &&
+                   r.width > 300;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        function hideBannerElements() {
+          // Pass 1: known banner classes (fastest path)
+          document.querySelectorAll(
+            '.goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-balloon-frame, #goog-gt-tt'
+          ).forEach(ensureHidden);
+
+          // Pass 2: any translate-related iframe that's pinned to the top of the viewport
+          document.querySelectorAll('iframe').forEach(function (iframe) {
+            if (iframe.style.display === 'none') return; // already hidden
+            if (!isTranslateRelated(iframe)) return;
+            if (isAtTopOfViewport(iframe)) ensureHidden(iframe);
+          });
+
+          // Pass 3: any direct body child (div wrapper) that contains a translate banner
+          if (document.body) {
+            for (var i = 0; i < document.body.children.length; i++) {
+              var child = document.body.children[i];
+              if (child.id === 'google_translate_element') continue;
+              if (child.id === 'root') continue;
+              if (child.tagName === 'SCRIPT') continue;
+              if (child.style && child.style.display === 'none') continue;
+              if (!isTranslateRelated(child)) continue;
+              if (isAtTopOfViewport(child)) ensureHidden(child);
+            }
+          }
+        }
+
+        function resetBodyOffset() {
+          if (document.body) {
+            var bs = document.body.style;
+            if (bs.top && bs.top !== '' && bs.top !== '0px' && bs.top !== 'auto') bs.top = '';
+            if (bs.marginTop && bs.marginTop !== '' && bs.marginTop !== '0px') bs.marginTop = '';
+            if (bs.position === 'relative') bs.position = '';
+          }
+          if (document.documentElement) {
+            var hs = document.documentElement.style;
+            if (hs.marginTop && hs.marginTop !== '' && hs.marginTop !== '0px') hs.marginTop = '';
+          }
+        }
+
+        function tick() {
+          hideBannerElements();
+          resetBodyOffset();
+        }
+
+        tick();
+
+        function startObserver() {
+          if (!document.body) { return setTimeout(startObserver, 50); }
+          var scheduled = false;
+          var obs = new MutationObserver(function () {
+            if (scheduled) return;
+            scheduled = true;
+            requestAnimationFrame(function () {
+              scheduled = false;
+              tick();
+            });
+          });
+          obs.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+          });
+          // Belt-and-braces: poll for ~6s while Google injects, then stop
+          var ticks = 0;
+          var iv = setInterval(function () {
+            tick();
+            if (++ticks > 30) clearInterval(iv);
+          }, 200);
+        }
+        startObserver();
+      })();
+    </script>
 
     <!-- Google Translate init — must be after body opens -->
     <script>
@@ -88,42 +241,49 @@
         'ru': 'ru', 'hi': 'hi'
       };
 
+      function clearGoogTransCookie() {
+        var host = location.hostname;
+        var paths = ['/', ''];
+        var domains = ['', '; domain=' + host, '; domain=.' + host];
+        paths.forEach(function (p) {
+          domains.forEach(function (d) {
+            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=' + p + d + ';';
+          });
+        });
+      }
+
+      function setGoogTransCookie(googleLang) {
+        var host = location.hostname;
+        document.cookie = 'googtrans=/en/' + googleLang + '; path=/;';
+        document.cookie = 'googtrans=/en/' + googleLang + '; path=/; domain=' + host + ';';
+      }
+
       window.__ipmApplyGoogleTranslate = function(lang) {
         if (!window.__ipmGoogleTranslateReady) {
           window.__ipmPendingLang = lang;
           return;
         }
         var googleLang = GOOGLE_LANG_MAP[lang] || lang;
-        if (lang === 'en') {
-          // Restore original English
-          var restoreEl = document.querySelector('.goog-te-banner-frame');
-          if (restoreEl) {
-            try {
-              var restoreBtn = restoreEl.contentDocument
-                ? restoreEl.contentDocument.querySelector('[id="restore"]')
-                : null;
-              if (restoreBtn) restoreBtn.click();
-            } catch(e) {}
-          }
-          // Clear cookie and reload to fully restore
-          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + location.hostname + ';';
-          return;
-        }
-        // Set cookie so translation persists across SPA navigation
-        document.cookie = 'googtrans=/en/' + googleLang + '; path=/;';
-        document.cookie = 'googtrans=/en/' + googleLang + '; path=/; domain=' + location.hostname + ';';
-        // Trigger Google Translate via its hidden select element
+
+        // Trigger Google Translate IN-PLACE via the hidden combo select.
         var tryTranslate = function(attempts) {
           var select = document.querySelector('.goog-te-combo');
-          if (select) {
+          if (!select) {
+            if (attempts > 0) setTimeout(function () { tryTranslate(attempts - 1); }, 200);
+            return;
+          }
+          if (lang === 'en') {
+            // Restore to original page language
+            clearGoogTransCookie();
+            select.value = '';
+            select.dispatchEvent(new Event('change'));
+          } else {
+            setGoogTransCookie(googleLang);
             select.value = googleLang;
             select.dispatchEvent(new Event('change'));
-          } else if (attempts > 0) {
-            setTimeout(function() { tryTranslate(attempts - 1); }, 200);
           }
         };
-        tryTranslate(10);
+        tryTranslate(15);
       };
     </script>
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>

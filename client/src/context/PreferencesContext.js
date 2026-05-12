@@ -104,41 +104,18 @@ export function PreferencesProvider({ children }) {
   const setLanguage = useCallback((lang) => {
     setPrefsState((p) => ({ ...p, language: lang }));
     i18n.changeLanguage(lang);
-    // Apply RTL direction to the document for right-to-left languages
+    // Apply RTL direction + lang attr immediately so Chrome's built-in translator
+    // sees that the page is now in the user's selected language and doesn't offer to translate again.
     if (typeof document !== 'undefined') {
       document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';
       document.documentElement.lang = lang;
     }
-    // Drive Google Translate via cookie + page reload — by far the most reliable approach.
-    // Google's TranslateElement reads the googtrans cookie on initial load and translates
-    // the entire DOM (including SPA re-renders later via MutationObserver). Trying to
-    // trigger it via a `change` event on the hidden <select> is fragile and sometimes silently fails.
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      try {
-        const host = window.location.hostname;
-        if (lang === 'en') {
-          // Clear the Google Translate cookie so we go back to English on reload
-          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${host};`;
-        } else {
-          const GOOGLE_LANG_MAP = {
-            zh: 'zh-CN', en: 'en', es: 'es', fr: 'fr', ar: 'ar',
-            de: 'de', nl: 'nl', pt: 'pt', it: 'it', ja: 'ja',
-            tr: 'tr', ru: 'ru', hi: 'hi',
-          };
-          const googleLang = GOOGLE_LANG_MAP[lang] || lang;
-          document.cookie = `googtrans=/en/${googleLang}; path=/;`;
-          document.cookie = `googtrans=/en/${googleLang}; path=/; domain=${host};`;
-        }
-        // One clean reload — Google Translate kicks in instantly on the next page load,
-        // including all dashboards, signup flows, dynamic content, etc.
-        window.location.reload();
-      } catch (e) {
-        // Fallback: at least try the in-page widget approach
-        if (typeof window.__ipmApplyGoogleTranslate === 'function') {
-          window.__ipmApplyGoogleTranslate(lang);
-        }
-      }
+    // Drive Google Translate IN-PLACE (no full-page reload). This is faster, avoids the
+    // blank reload flash, and prevents Chrome from re-detecting the page on every reload.
+    // The helper handles both the cookie (so Google's MutationObserver picks up later SPA
+    // renders) and the in-page trigger via the hidden <select> element.
+    if (typeof window !== 'undefined' && typeof window.__ipmApplyGoogleTranslate === 'function') {
+      window.__ipmApplyGoogleTranslate(lang);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const setCurrency = useCallback((curr) => {

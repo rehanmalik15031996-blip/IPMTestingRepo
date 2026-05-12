@@ -5561,3 +5561,362 @@ button, a, [role="button"], select, input[type="submit"], input[type="button"] {
         height: 100vh;
     }
 }
+
+/* =========================================================================
+   TRANSLATION-OVERFLOW SAFETY NET
+   -------------------------------------------------------------------------
+   When the page is translated to a non-English language (either by i18next
+   bundles or Google Translate), text often gets 20–50% longer. This causes
+   buttons to clip, navbar items to push off-screen, labels to overlap, etc.
+   
+   The rules below ONLY activate when a non-English language is active —
+   detected via:
+     • html[lang] not being "en" (set by our i18next/PreferencesContext)
+     • body.translated-ltr / body.translated-rtl (added by Google Translate)
+   
+   They allow text to wrap or shrink gracefully without overflowing the
+   English layout when lang="en".
+   ========================================================================= */
+
+html:not([lang="en"]):not([lang^="en-"]) body,
+body.translated-ltr,
+body.translated-rtl {
+    /* Permit long translated words to break across lines instead of overflowing */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Buttons & pill-style links: let text wrap onto two lines instead of clipping
+   or pushing the button wider than its row. */
+html:not([lang="en"]):not([lang^="en-"]) button,
+html:not([lang="en"]):not([lang^="en-"]) .btn,
+html:not([lang="en"]):not([lang^="en-"]) .btn-outline,
+html:not([lang="en"]):not([lang^="en-"]) .btn-filled,
+html:not([lang="en"]):not([lang^="en-"]) [role="button"],
+body.translated-ltr button,
+body.translated-ltr .btn,
+body.translated-ltr .btn-outline,
+body.translated-ltr .btn-filled,
+body.translated-ltr [role="button"],
+body.translated-rtl button,
+body.translated-rtl .btn,
+body.translated-rtl .btn-outline,
+body.translated-rtl .btn-filled,
+body.translated-rtl [role="button"] {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+    height: auto;
+    min-height: 36px;
+}
+
+/* Flex containers used heavily across the app — adding min-width: 0 on flex
+   children is the canonical fix for flexbox text overflow. */
+html:not([lang="en"]):not([lang^="en-"]) .nav-right,
+html:not([lang="en"]):not([lang^="en-"]) .nav-left,
+body.translated-ltr .nav-right,
+body.translated-ltr .nav-left,
+body.translated-rtl .nav-right,
+body.translated-rtl .nav-left {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    min-width: 0;
+}
+
+html:not([lang="en"]):not([lang^="en-"]) .nav-right > *,
+html:not([lang="en"]):not([lang^="en-"]) .nav-left > *,
+body.translated-ltr .nav-right > *,
+body.translated-ltr .nav-left > *,
+body.translated-rtl .nav-right > *,
+body.translated-rtl .nav-left > * {
+    min-width: 0;
+}
+
+/* Labels, table headers, card titles, and dropdown options often have
+   fixed widths in English. Allow them to wrap when translated. */
+html:not([lang="en"]):not([lang^="en-"]) label,
+html:not([lang="en"]):not([lang^="en-"]) th,
+html:not([lang="en"]):not([lang^="en-"]) option,
+html:not([lang="en"]):not([lang^="en-"]) .label,
+html:not([lang="en"]):not([lang^="en-"]) .card-title,
+html:not([lang="en"]):not([lang^="en-"]) .card-header,
+body.translated-ltr label,
+body.translated-ltr th,
+body.translated-ltr option,
+body.translated-ltr .label,
+body.translated-ltr .card-title,
+body.translated-ltr .card-header,
+body.translated-rtl label,
+body.translated-rtl th,
+body.translated-rtl option,
+body.translated-rtl .label,
+body.translated-rtl .card-title,
+body.translated-rtl .card-header {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Sidebar / dashboard menu items — keep them on a single line but allow
+   them to shrink and ellipsis if a translation pushes past the column width. */
+html:not([lang="en"]):not([lang^="en-"]) .sidebar-dark a,
+html:not([lang="en"]):not([lang^="en-"]) .sidebar-dark span,
+body.translated-ltr .sidebar-dark a,
+body.translated-ltr .sidebar-dark span,
+body.translated-rtl .sidebar-dark a,
+body.translated-rtl .sidebar-dark span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Generic small-screen tightening: shrink button padding slightly when
+   translated, so longer words still fit in pill buttons on the navbar. */
+@media (min-width: 769px) {
+    html:not([lang="en"]):not([lang^="en-"]) .btn-outline,
+    html:not([lang="en"]):not([lang^="en-"]) .btn-filled,
+    body.translated-ltr .btn-outline,
+    body.translated-ltr .btn-filled,
+    body.translated-rtl .btn-outline,
+    body.translated-rtl .btn-filled {
+        padding-left: 18px;
+        padding-right: 18px;
+        font-size: 0.95rem;
+    }
+}
+
+/* Prevent any absolutely-positioned text overlay from creeping outside its
+   parent container when translated text exceeds the container's intended size. */
+html:not([lang="en"]):not([lang^="en-"]) [class*="hero"] h1,
+html:not([lang="en"]):not([lang^="en-"]) [class*="hero"] h2,
+html:not([lang="en"]):not([lang^="en-"]) [class*="title"],
+body.translated-ltr [class*="hero"] h1,
+body.translated-ltr [class*="hero"] h2,
+body.translated-ltr [class*="title"],
+body.translated-rtl [class*="hero"] h1,
+body.translated-rtl [class*="hero"] h2,
+body.translated-rtl [class*="title"] {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* -------------------------------------------------------------------------
+   NOWRAP OVERRIDE — designers add white-space: nowrap to keep English titles
+   on a single line, but translated text (especially Arabic/German/French)
+   is significantly longer and overflows. Force wrapping in non-English mode.
+   ------------------------------------------------------------------------- */
+html:not([lang="en"]):not([lang^="en-"]) [class*="headline"],
+html:not([lang="en"]):not([lang^="en-"]) [class*="title"],
+html:not([lang="en"]):not([lang^="en-"]) [class*="tagline"],
+html:not([lang="en"]):not([lang^="en-"]) [class*="subtitle"],
+html:not([lang="en"]):not([lang^="en-"]) [class*="sentence"],
+html:not([lang="en"]):not([lang^="en-"]) [class*="line--"],
+body.translated-ltr [class*="headline"],
+body.translated-ltr [class*="title"],
+body.translated-ltr [class*="tagline"],
+body.translated-ltr [class*="subtitle"],
+body.translated-ltr [class*="sentence"],
+body.translated-ltr [class*="line--"],
+body.translated-rtl [class*="headline"],
+body.translated-rtl [class*="title"],
+body.translated-rtl [class*="tagline"],
+body.translated-rtl [class*="subtitle"],
+body.translated-rtl [class*="sentence"],
+body.translated-rtl [class*="line--"] {
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------
+   FALLBACK FONTS for non-Latin scripts
+   Playfair Display, Jost, DM Mono etc. only ship Latin glyphs — when used
+   in Arabic/Chinese/Japanese/Hindi pages they fall back to the browser's
+   default and render at a different size, causing visible overlap with the
+   adjacent normal-font line. Force a script-appropriate stack instead.
+   ------------------------------------------------------------------------- */
+html[lang="ar"] *,
+body.translated-rtl * {
+    /* Use Poppins/system fonts for Arabic — Playfair has no Arabic glyphs */
+    font-family: 'Poppins', 'Segoe UI', 'Tahoma', system-ui, sans-serif !important;
+    font-style: normal !important;
+}
+
+html[lang="zh"] *,
+html[lang^="zh-"] * {
+    font-family: 'Poppins', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif !important;
+}
+
+html[lang="ja"] * {
+    font-family: 'Poppins', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', system-ui, sans-serif !important;
+}
+
+html[lang="hi"] * {
+    font-family: 'Poppins', 'Mangal', 'Nirmala UI', system-ui, sans-serif !important;
+}
+
+/* -------------------------------------------------------------------------
+   HERO HEADLINE — the home page hero stacks a plain + italic-accent span
+   inside a single `white-space: nowrap` line. In any non-English language
+   force the sentence to wrap and the accent span to behave normally so the
+   two halves stop overlapping each other.
+   ------------------------------------------------------------------------- */
+html:not([lang="en"]):not([lang^="en-"]) .home-figma__headline-sentence,
+body.translated-ltr .home-figma__headline-sentence,
+body.translated-rtl .home-figma__headline-sentence {
+    white-space: normal !important;
+    display: block;
+    line-height: 1.15;
+}
+
+html:not([lang="en"]):not([lang^="en-"]) .home-figma__headline-accent,
+body.translated-ltr .home-figma__headline-accent,
+body.translated-rtl .home-figma__headline-accent {
+    /* Drop the italic Playfair styling — Playfair has no non-Latin glyphs */
+    font-family: 'Poppins', system-ui, sans-serif !important;
+    font-style: normal !important;
+    font-size: 1em !important;
+    display: inline;
+}
+
+html:not([lang="en"]):not([lang^="en-"]) .home-figma__tagline-line,
+html:not([lang="en"]):not([lang^="en-"]) .home-figma__tagline-line--second,
+body.translated-ltr .home-figma__tagline-line,
+body.translated-ltr .home-figma__tagline-line--second,
+body.translated-rtl .home-figma__tagline-line,
+body.translated-rtl .home-figma__tagline-line--second {
+    white-space: normal !important;
+    display: inline;
+}
+
+/* -------------------------------------------------------------------------
+   HIDE GOOGLE TRANSLATE ORIGINAL-TEXT REMNANTS
+   When Google Translate is active, it sometimes leaves the original English
+   wrapped in a hidden <font> tag next to the translated text. If that <font>
+   ever becomes visible (rare CSS reset edge cases) it creates overlap.
+   ------------------------------------------------------------------------- */
+font[style*="background-color: rgb(154, 215, 254)"],
+font[style*="background-color: rgb(255, 255, 255)"],
+font#goog-gt-original-text,
+.goog-gt-tt,
+.goog-text-highlight {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* =========================================================================
+   ANIMA / FIGMA-EXPORT PATTERN NEUTRALIZER (Tailwind arbitrary values)
+   -------------------------------------------------------------------------
+   The codebase has many components generated by Anima from Figma which use
+   pixel-perfect English layouts built with Tailwind arbitrary value classes:
+     • position: absolute + top-[123px]   (hardcoded Y of each slot)
+     • h-[378.23px]                       (fixed card height)
+     • w-[257px]                          (fixed text width)
+     • whitespace-nowrap                  (single-line titles)
+     • leading-[0]                        (line-height: 0 — single-line trick)
+   These break in any longer language. The block below ONLY activates in
+   non-English mode and converts these locked layouts to graceful flow.
+   English layouts are completely untouched.
+   ========================================================================= */
+
+/* (1) leading-[0] is a single-line hack — replace with sane line-height so
+   multi-line translated titles don't stack on themselves. */
+html:not([lang="en"]):not([lang^="en-"]) [class*="leading-[0]"],
+body.translated-ltr [class*="leading-[0]"],
+body.translated-rtl [class*="leading-[0]"] {
+    line-height: 1.25 !important;
+}
+
+/* (2) whitespace-nowrap on titles/text → allow wrap when translated. */
+html:not([lang="en"]):not([lang^="en-"]) .whitespace-nowrap,
+body.translated-ltr .whitespace-nowrap,
+body.translated-rtl .whitespace-nowrap {
+    white-space: normal !important;
+}
+
+/* (3) Absolute positioning with pixel-perfect Y → switch to natural flow.
+   We require BOTH `absolute` and `top-[` to be in the class list so we only
+   touch Anima/Figma exports (not Tailwind's regular `top-0`, `top-4` etc.). */
+html:not([lang="en"]):not([lang^="en-"]) [class*="absolute"][class*="top-["],
+body.translated-ltr [class*="absolute"][class*="top-["],
+body.translated-rtl [class*="absolute"][class*="top-["] {
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin-bottom: 16px;
+}
+
+/* (4) Fixed pixel heights (h-[Xpx], lg:h-[Xpx], md:h-[Xpx]) → auto. */
+html:not([lang="en"]):not([lang^="en-"]) [class*=" h-["],
+html:not([lang="en"]):not([lang^="en-"]) [class^="h-["],
+html:not([lang="en"]):not([lang^="en-"]) [class*=":h-["],
+body.translated-ltr [class*=" h-["],
+body.translated-ltr [class^="h-["],
+body.translated-ltr [class*=":h-["],
+body.translated-rtl [class*=" h-["],
+body.translated-rtl [class^="h-["],
+body.translated-rtl [class*=":h-["] {
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+/* (5) min-h-[Xpx] arbitrary → 0 so containers grow with content. */
+html:not([lang="en"]):not([lang^="en-"]) [class*="min-h-["],
+body.translated-ltr [class*="min-h-["],
+body.translated-rtl [class*="min-h-["] {
+    min-height: 0 !important;
+}
+
+/* (6) Fixed pixel widths on text containers (w-[Xpx]) → auto + max-width 100%.
+   Carefully scoped to avoid touching min-w-[…] (icon hit areas) and max-w-[…]
+   (which we WANT to keep as upper bounds). */
+html:not([lang="en"]):not([lang^="en-"]) [class*=" w-["],
+html:not([lang="en"]):not([lang^="en-"]) [class^="w-["],
+html:not([lang="en"]):not([lang^="en-"]) [class*=":w-["],
+body.translated-ltr [class*=" w-["],
+body.translated-ltr [class^="w-["],
+body.translated-ltr [class*=":w-["],
+body.translated-rtl [class*=" w-["],
+body.translated-rtl [class^="w-["],
+body.translated-rtl [class*=":w-["] {
+    width: auto !important;
+    max-width: 100% !important;
+}
+
+/* (7) text-[0px] (a Tailwind trick for "shrinkwrap to inline-block contents
+   without whitespace inheritance") leaks down and zeroes out translated text.
+   Force a real font size on its descendants. */
+html:not([lang="en"]):not([lang^="en-"]) [class*="text-[0px]"] > *,
+body.translated-ltr [class*="text-[0px]"] > *,
+body.translated-rtl [class*="text-[0px]"] > * {
+    font-size: revert !important;
+}
+
+/* (8) Anima cards typically have rounded white containers — re-add a small
+   bottom padding when their fixed height is removed so the last absolutely
+   positioned slot (now flowed) doesn't kiss the bottom edge. */
+html:not([lang="en"]):not([lang^="en-"]) [class*="rounded-["][class*="bg-white"],
+body.translated-ltr [class*="rounded-["][class*="bg-white"],
+body.translated-rtl [class*="rounded-["][class*="bg-white"] {
+    padding-bottom: 24px;
+}
+
+/* (9) Playfair Display italic accent text appears all over the codebase via
+   Anima's `font-['Playfair_Display']`. Playfair has zero non-Latin coverage.
+   Force a Latin+Arabic+CJK-capable stack in non-English mode. */
+html:not([lang="en"]):not([lang^="en-"]) [class*="Playfair_Display"],
+html:not([lang="en"]):not([lang^="en-"]) [class*="Playfair Display"],
+html:not([lang="en"]):not([lang^="en-"]) [style*="Playfair"],
+body.translated-ltr [class*="Playfair_Display"],
+body.translated-ltr [class*="Playfair Display"],
+body.translated-ltr [style*="Playfair"],
+body.translated-rtl [class*="Playfair_Display"],
+body.translated-rtl [class*="Playfair Display"],
+body.translated-rtl [style*="Playfair"] {
+    font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif !important;
+    font-style: normal !important;
+}
