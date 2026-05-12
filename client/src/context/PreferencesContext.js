@@ -45,6 +45,8 @@ const RTL_LANGS = new Set(['ar', 'he', 'ur', 'fa']);
 const PreferencesContext = createContext(null);
 
 export function PreferencesProvider({ children }) {
+  const [translationResetKey, setTranslationResetKey] = useState(0);
+
   const [prefs, setPrefsState] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -104,18 +106,20 @@ export function PreferencesProvider({ children }) {
   const setLanguage = useCallback((lang) => {
     setPrefsState((p) => ({ ...p, language: lang }));
     i18n.changeLanguage(lang);
-    // Apply RTL direction + lang attr immediately so Chrome's built-in translator
-    // sees that the page is now in the user's selected language and doesn't offer to translate again.
     if (typeof document !== 'undefined') {
       document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';
       document.documentElement.lang = lang;
     }
-    // Drive Google Translate IN-PLACE (no full-page reload). This is faster, avoids the
-    // blank reload flash, and prevents Chrome from re-detecting the page on every reload.
-    // The helper handles both the cookie (so Google's MutationObserver picks up later SPA
-    // renders) and the in-page trigger via the hidden <select> element.
     if (typeof window !== 'undefined' && typeof window.__ipmApplyGoogleTranslate === 'function') {
       window.__ipmApplyGoogleTranslate(lang);
+    }
+    // When switching back to English, increment the reset key so the routes subtree
+    // (keyed by this value) fully unmounts + remounts — every translated DOM node is
+    // replaced with fresh English-rendered JSX from React state. Combined with the
+    // Google Translate widget teardown in index.html, this gives a complete restore
+    // without a page reload.
+    if (lang === 'en') {
+      setTranslationResetKey((k) => k + 1);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const setCurrency = useCallback((curr) => {
@@ -231,6 +235,7 @@ export function PreferencesProvider({ children }) {
     currency,
     units,
     priceDisplayMode,
+    translationResetKey,
     setLanguage,
     setCurrency,
     setUnits,

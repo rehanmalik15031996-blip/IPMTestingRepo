@@ -258,35 +258,86 @@
         document.cookie = 'googtrans=/en/' + googleLang + '; path=/; domain=' + host + ';';
       }
 
+      // Completely removes Google Translate from the page. This is the only reliable
+      // way to fully restore English in a React SPA without a reload:
+      // - A simple select.value = '' restore leaves Google's MutationObserver alive,
+      //   which re-translates any newly-mounted DOM nodes (e.g. on scroll, lazy-loaded
+      //   routes) back to the previous language.
+      // - By removing all worker iframes, scripts, and the widget mount, the observer
+      //   is destroyed and the page reverts cleanly. When the user later picks a
+      //   non-English language, we re-inject the script.
+      window.__ipmTearDownGoogleTranslate = function() {
+        try {
+          // Remove Google Translate scripts injected by the widget
+          document.querySelectorAll('script[src*="translate.google.com"], script[src*="translate.googleapis.com"], script[src*="translate_a/element"]').forEach(function (s) { s.remove(); });
+          // Remove all Google Translate iframes (workers, banner, balloon)
+          document.querySelectorAll('iframe.skiptranslate, iframe.goog-te-banner-frame, iframe.goog-te-menu-frame, iframe.goog-te-balloon-frame, iframe[class*="goog-te"]').forEach(function (i) { i.remove(); });
+          // Remove any leftover Google Translate UI elements
+          document.querySelectorAll('.goog-te-banner-frame, .goog-te-balloon-frame, #goog-gt-tt, .goog-tooltip, .goog-te-spinner-pos').forEach(function (e) { e.remove(); });
+          // Reset the hidden mount point so the next init has a clean slate
+          var mount = document.getElementById('google_translate_element');
+          if (mount) mount.innerHTML = '';
+          // Clear globals so the next non-English switch knows to re-inject the script
+          window.__ipmGoogleTranslateReady = false;
+          try {
+            if (window.google) {
+              delete window.google.translate;
+            }
+          } catch (e) {}
+        } catch (e) {}
+      };
+
+      window.__ipmLoadGoogleTranslateScript = function() {
+        // Idempotent: don't re-inject if already loaded or in progress
+        if (document.querySelector('script[data-ipm-gt-loader="1"]')) return;
+        var s = document.createElement('script');
+        s.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+        s.async = true;
+        s.setAttribute('data-ipm-gt-loader', '1');
+        document.head.appendChild(s);
+      };
+
       window.__ipmApplyGoogleTranslate = function(lang) {
-        if (!window.__ipmGoogleTranslateReady) {
-          window.__ipmPendingLang = lang;
-          return;
-        }
         var googleLang = GOOGLE_LANG_MAP[lang] || lang;
 
-        // Trigger Google Translate IN-PLACE via the hidden combo select.
+        if (lang === 'en') {
+          // Step 1: clear cookie + trigger Google's in-place restore (untranslates the
+          // currently visible DOM). The full teardown alone can leave some translated
+          // text in place because it doesn't reverse already-translated text nodes.
+          clearGoogTransCookie();
+          var select = document.querySelector('.goog-te-combo');
+          if (select) {
+            select.value = '';
+            try { select.dispatchEvent(new Event('change')); } catch (e) {}
+          }
+          // Step 2: give Google ~500ms to apply its restore, then nuke the widget so
+          // its MutationObserver stops re-translating future DOM updates (e.g. on
+          // scroll, route changes, lazy-loaded sections).
+          setTimeout(window.__ipmTearDownGoogleTranslate, 500);
+          return;
+        }
+
+        // Non-English path. If the widget was torn down by a previous English switch,
+        // queue the language and re-inject the loader script.
+        if (!window.__ipmGoogleTranslateReady) {
+          window.__ipmPendingLang = lang;
+          window.__ipmLoadGoogleTranslateScript();
+        }
+
         var tryTranslate = function(attempts) {
           var select = document.querySelector('.goog-te-combo');
           if (!select) {
             if (attempts > 0) setTimeout(function () { tryTranslate(attempts - 1); }, 200);
             return;
           }
-          if (lang === 'en') {
-            // Restore to original page language
-            clearGoogTransCookie();
-            select.value = '';
-            select.dispatchEvent(new Event('change'));
-          } else {
-            setGoogTransCookie(googleLang);
-            select.value = googleLang;
-            select.dispatchEvent(new Event('change'));
-          }
+          setGoogTransCookie(googleLang);
+          select.value = googleLang;
+          select.dispatchEvent(new Event('change'));
         };
-        tryTranslate(15);
+        tryTranslate(20);
       };
     </script>
-    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
+    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async data-ipm-gt-loader="1"></script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

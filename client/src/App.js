@@ -22,6 +22,7 @@ import DashboardSplitTopBar from './components/DashboardSplitTopBar';
 import DemoModeBar, { getDemoState } from './components/DemoModeBar';
 import { PropdataImportProvider } from './context/PropdataImportContext';
 import { useTranslation } from 'react-i18next';
+import { usePreferences } from './context/PreferencesContext';
 
 // Critical-path pages loaded eagerly (home, login, signup – first paint)
 import Home from './pages/Home';
@@ -718,13 +719,13 @@ const Layout = ({ children }) => {
     return isDashboardLayout ? <SidebarProvider>{content}</SidebarProvider> : content;
 };
 
-function App() {
+function AppRoutes() {
+  // translationResetKey increments every time the user switches back to English.
+  // Using it as a React key on this subtree forces a full unmount + remount, replacing
+  // every translated DOM node with fresh English JSX — no page reload needed.
+  const { translationResetKey } = usePreferences();
   return (
-    <Router>
-        <PropdataImportProvider>
-        <Layout>
-            <ScrollToTop />
-            <Suspense fallback={<PageLoader />}>
+    <Suspense key={translationResetKey} fallback={<PageLoader />}>
             <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Home />} />
@@ -824,6 +825,16 @@ function App() {
                 <Route path="/seed" element={<SeedDatabase />} />
             </Routes>
             </Suspense>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+        <PropdataImportProvider>
+        <Layout>
+            <ScrollToTop />
+            <AppRoutes />
         </Layout>
         </PropdataImportProvider>
     </Router>
