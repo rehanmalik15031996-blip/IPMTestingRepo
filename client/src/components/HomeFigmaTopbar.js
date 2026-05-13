@@ -127,7 +127,11 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
 
   return (
     <>
-      <header className={`home-figma__topbar ${darkMode ? 'home-figma__topbar--dark' : ''}`}>
+      {/* translate="no" — nav text is already handled by react-i18next (t() calls).
+          Excluding the header from Google Translate prevents double-translation that
+          causes garbled text when Google runs on top of i18n-translated strings, and
+          prevents scroll-triggered React re-renders from reverting the header to English. */}
+      <header translate="no" className={`home-figma__topbar ${darkMode ? 'home-figma__topbar--dark' : ''}`}>
         <div className="home-figma__topbar-inner">
           <div className="home-figma__brand">
             <Link to="/" className="home-figma__logo-link" aria-label="IPM home">
@@ -215,7 +219,7 @@ export default function HomeFigmaTopbar({ darkMode = false }) {
         onClick={() => setMobileOpen(false)}
       />
 
-      <div className={`home-figma-drawer ${mobileOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
+      <div translate="no" className={`home-figma-drawer ${mobileOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
         <DrawerSection />
       </div>
     </>

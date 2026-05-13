@@ -51,6 +51,13 @@ async function loadDynamicBundle(lang) {
   try {
     const bundle = await import(`./i18n/locales/${lang}.json`);
     i18n.addResourceBundle(lang, 'translation', bundle.default || bundle, false, false);
+    // addResourceBundle doesn't automatically re-render react-i18next hooks.
+    // Emitting languageChanged notifies all useTranslation() subscribers so
+    // components re-render with the newly loaded translations immediately,
+    // instead of staying on the English fallback until the next re-render trigger.
+    if (i18n.language === lang) {
+      i18n.emit('languageChanged', lang);
+    }
   } catch (e) {
     // File not generated yet — silently fall back to English via fallbackLng
     console.warn(`[i18n] No bundle found for "${lang}", falling back to English.`);

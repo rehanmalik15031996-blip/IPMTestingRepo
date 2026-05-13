@@ -109,15 +109,25 @@ export function PreferencesProvider({ children }) {
     if (typeof document !== 'undefined') {
       document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';
       document.documentElement.lang = lang;
+
+      // Google Translate's MutationObserver continues running in-memory even after
+      // we remove its script tags (teardown). The observer checks every ancestor of
+      // a new DOM node for the `notranslate` class before translating. By adding it
+      // to <html> we block re-translation of every React-rendered node, including
+      // sections that appear on scroll. We remove it before any non-English switch
+      // so that Google can scan the page again when the user picks a language.
+      if (lang === 'en') {
+        document.documentElement.classList.add('notranslate');
+      } else {
+        document.documentElement.classList.remove('notranslate');
+      }
     }
     if (typeof window !== 'undefined' && typeof window.__ipmApplyGoogleTranslate === 'function') {
       window.__ipmApplyGoogleTranslate(lang);
     }
     // When switching back to English, increment the reset key so the routes subtree
     // (keyed by this value) fully unmounts + remounts — every translated DOM node is
-    // replaced with fresh English-rendered JSX from React state. Combined with the
-    // Google Translate widget teardown in index.html, this gives a complete restore
-    // without a page reload.
+    // replaced with fresh English-rendered JSX from React state.
     if (lang === 'en') {
       setTranslationResetKey((k) => k + 1);
     }

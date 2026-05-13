@@ -5,6 +5,60 @@
     <link rel="icon" href="%PUBLIC_URL%/logo-white.png" type="image/png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+
+    <!--
+      Cross-origin error filter. Must be the FIRST script so its capture-phase
+      'error' listener is registered before react-error-overlay (CRA dev) attaches
+      its own. The Google Translate widget loads from translate.google.com without
+      CORS, so any error inside its script reaches us as the browser-sanitized
+      "Script error." with no filename/lineno. These cannot be debugged from our
+      code and they trigger CRA's red runtime-error overlay only in dev mode
+      (they never appear in production builds). We swallow ONLY:
+        - the literal "Script error." (always cross-origin third-party)
+        - errors whose source/stack points at translate.google(apis).com
+      All other errors propagate normally to the overlay and console.
+    -->
+    <script>
+      (function () {
+        var TRANSLATE_RE = /translate\.google(?:apis)?\.com|translate_a\/element/i;
+        function looksLikeTranslateNoise(message, source) {
+          if (typeof message === 'string' && (message === 'Script error.' || message === 'Script error')) return true;
+          if (typeof source === 'string' && TRANSLATE_RE.test(source)) return true;
+          return false;
+        }
+        window.addEventListener('error', function (e) {
+          try {
+            var src = (e && e.filename) || (e && e.target && e.target.src) || '';
+            var err = e && e.error;
+            var stack = err && err.stack;
+            if (
+              looksLikeTranslateNoise(e && e.message, src) ||
+              (typeof stack === 'string' && TRANSLATE_RE.test(stack))
+            ) {
+              if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+              if (typeof e.preventDefault === 'function') e.preventDefault();
+              return false;
+            }
+          } catch (_) { /* swallow */ }
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          try {
+            var reason = e && e.reason;
+            var msg = reason && (reason.message || (reason.toString && reason.toString()));
+            var stack = reason && reason.stack;
+            if (
+              (typeof msg === 'string' && TRANSLATE_RE.test(msg)) ||
+              (typeof stack === 'string' && TRANSLATE_RE.test(stack))
+            ) {
+              if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+              if (typeof e.preventDefault === 'function') e.preventDefault();
+              return false;
+            }
+          } catch (_) { /* swallow */ }
+        }, true);
+      })();
+    </script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.19.0/mapbox-gl.css" rel="stylesheet" />
     <!-- Poppins Font -->
@@ -53,23 +107,39 @@
 
     <!-- Google Translate: hidden widget, controlled programmatically by language selector -->
     <style>
-      /* Hide only the visible "Translated into ..." top banner and tooltips.
-         Do NOT hide Google's internal worker iframes (they are required for translation to function). */
+      /* ── Hide ALL Google Translate UI chrome ──────────────────────────────────────
+         Worker iframes (translation engine) are kept; only visible UI is suppressed.
+         Google uses both stable class names (goog-te-*) and obfuscated ones (VIpgJd-*)
+         that change between releases — we target both sets plus positional selectors. */
+
+      /* Banner "Translated by Google" top bar */
       .goog-te-banner-frame,
       .goog-te-banner-frame.skiptranslate,
       iframe.goog-te-banner-frame,
+      /* Gadget wrapper (contains the combo & floating icon) */
       .goog-te-gadget,
+      /* Floating translate icon/bubble (stable id) */
       #goog-gt-tt,
+      /* Balloon tooltip */
       .goog-te-balloon-frame,
+      /* Inline tooltip on hover */
       .goog-tooltip,
-      .goog-tooltip:hover {
+      .goog-tooltip:hover,
+      /* Obfuscated class Google uses for the floating "G" icon bubble */
+      [class*="VIpgJd-"],
+      /* The outermost floating button wrapper Google injects into <body> */
+      body > .skiptranslate:not(#google_translate_element),
+      /* Any fixed/absolute element Google injects that wraps the icon */
+      body > div[id^="goog-gt"] {
         display: none !important;
         visibility: hidden !important;
         height: 0 !important;
         max-height: 0 !important;
         opacity: 0 !important;
         pointer-events: none !important;
+        overflow: hidden !important;
       }
+
       /* Force body to its natural top position even when Google injects margin/transform */
       html { margin-top: 0 !important; }
       html body,
@@ -79,10 +149,12 @@
         margin-top: 0 !important;
         position: static !important;
       }
+
       /* Hide the "Translated by Google" tooltip and original-text wrapper */
       .goog-te-menu-value:hover { text-decoration: none !important; }
       font#goog-gt-original-text { display: none !important; }
-      /* Some Chrome versions inject a tooltip element on hover */
+
+      /* Suppress highlight box Google draws on translated text on hover */
       .goog-text-highlight { background: transparent !important; box-shadow: none !important; }
     </style>
   </head>
@@ -142,19 +214,22 @@
         }
 
         function hideBannerElements() {
-          // Pass 1: known banner classes (fastest path)
+          // Pass 1: known stable selectors (fastest path)
           document.querySelectorAll(
-            '.goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-balloon-frame, #goog-gt-tt'
+            '.goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-balloon-frame, #goog-gt-tt, .goog-te-gadget'
           ).forEach(ensureHidden);
 
-          // Pass 2: any translate-related iframe that's pinned to the top of the viewport
+          // Pass 2: obfuscated VIpgJd-* elements (the floating "G" icon bubble)
+          document.querySelectorAll('[class*="VIpgJd-"]').forEach(ensureHidden);
+
+          // Pass 3: any translate-related iframe that's pinned to the top of the viewport
           document.querySelectorAll('iframe').forEach(function (iframe) {
             if (iframe.style.display === 'none') return; // already hidden
             if (!isTranslateRelated(iframe)) return;
             if (isAtTopOfViewport(iframe)) ensureHidden(iframe);
           });
 
-          // Pass 3: any direct body child (div wrapper) that contains a translate banner
+          // Pass 4: any direct body child (div/span wrapper) injected by Google
           if (document.body) {
             for (var i = 0; i < document.body.children.length; i++) {
               var child = document.body.children[i];
@@ -162,7 +237,8 @@
               if (child.id === 'root') continue;
               if (child.tagName === 'SCRIPT') continue;
               if (child.style && child.style.display === 'none') continue;
-              if (!isTranslateRelated(child)) continue;
+              // Hide floating icon wrapper: skiptranslate divs that aren't our mount
+              if (isTranslateRelated(child)) { ensureHidden(child); continue; }
               if (isAtTopOfViewport(child)) ensureHidden(child);
             }
           }
@@ -277,6 +353,11 @@
           // Reset the hidden mount point so the next init has a clean slate
           var mount = document.getElementById('google_translate_element');
           if (mount) mount.innerHTML = '';
+          // Remove body translation state classes. Google's internal code checks these
+          // to decide whether to keep translating — removing them signals "not translated".
+          if (document.body) {
+            document.body.classList.remove('translated-ltr', 'translated-rtl');
+          }
           // Clear globals so the next non-English switch knows to re-inject the script
           window.__ipmGoogleTranslateReady = false;
           try {
@@ -301,19 +382,15 @@
         var googleLang = GOOGLE_LANG_MAP[lang] || lang;
 
         if (lang === 'en') {
-          // Step 1: clear cookie + trigger Google's in-place restore (untranslates the
-          // currently visible DOM). The full teardown alone can leave some translated
-          // text in place because it doesn't reverse already-translated text nodes.
+          // Clear the translate cookie so no future page load auto-translates.
           clearGoogTransCookie();
-          var select = document.querySelector('.goog-te-combo');
-          if (select) {
-            select.value = '';
-            try { select.dispatchEvent(new Event('change')); } catch (e) {}
-          }
-          // Step 2: give Google ~500ms to apply its restore, then nuke the widget so
-          // its MutationObserver stops re-translating future DOM updates (e.g. on
-          // scroll, route changes, lazy-loaded sections).
-          setTimeout(window.__ipmTearDownGoogleTranslate, 500);
+          // Tear down immediately — don't wait 500ms. The React translationResetKey
+          // will unmount + remount the entire page tree with fresh English JSX, so
+          // we don't need Google to "un-translate" visible text. The 500ms wait was
+          // the root cause of scroll re-translation: during that window Google's
+          // MutationObserver was still alive and re-translated React-rendered nodes
+          // as they appeared (e.g. lazy sections, scroll-triggered re-renders).
+          window.__ipmTearDownGoogleTranslate();
           return;
         }
 
@@ -326,15 +403,27 @@
 
         var tryTranslate = function(attempts) {
           var select = document.querySelector('.goog-te-combo');
-          if (!select) {
-            if (attempts > 0) setTimeout(function () { tryTranslate(attempts - 1); }, 200);
+          // Retry if widget hasn't injected the combo yet, or if the options list
+          // isn't populated yet (select exists but has <=1 options means still loading).
+          if (!select || select.options.length <= 1) {
+            if (attempts > 0) setTimeout(function () { tryTranslate(attempts - 1); }, 300);
             return;
           }
+          // Always clear any stale googtrans cookie first (e.g. a previously manually
+          // selected Abkhaz or other language from an earlier session) before setting
+          // the new one, so there is never a conflicting cookie that Google reads first.
+          clearGoogTransCookie();
           setGoogTransCookie(googleLang);
           select.value = googleLang;
+          // If the value didn't stick (language code not in options), log and bail rather
+          // than silently translating to whatever the first option is (often Abkhaz).
+          if (select.value !== googleLang) {
+            console.warn('[IPM] Google Translate: language code not found in combo:', googleLang);
+            return;
+          }
           select.dispatchEvent(new Event('change'));
         };
-        tryTranslate(20);
+        tryTranslate(25);
       };
     </script>
     <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async data-ipm-gt-loader="1"></script>

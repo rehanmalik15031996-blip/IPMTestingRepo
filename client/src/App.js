@@ -305,7 +305,7 @@ const LayoutInner = ({ children }) => {
 
             {/* --- NAVBAR (hidden for dashboard layouts — they use DashboardSplitTopBar) --- */}
             {showPublicLayout && !isDashboardLayout && !hideGlobalLandingNavForHome && (
-                <nav className={navClass}>
+                <nav translate="no" className={navClass}>
                     {isLandingNav ? (
                         <div className="nav-landing-inner">
                             <div className="nav-landing-brand">
@@ -623,7 +623,7 @@ const LayoutInner = ({ children }) => {
 
             {/* Mobile nav menu overlay (public pages, not dashboard); home uses in-hero drawer */}
             {showPublicLayout && !isDashboardLayout && !hideGlobalLandingNavForHome && (
-                <div className={`nav-mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
+                <div translate="no" className={`nav-mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
                     <NavSettingsDropdown />
                     {user ? (
                         <>
