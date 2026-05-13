@@ -134,11 +134,17 @@
       /* Inline tooltip on hover */
       .goog-tooltip,
       .goog-tooltip:hover,
-      /* Obfuscated class Google uses for the floating "G" icon bubble */
-      [class*="VIpgJd-"],
-      /* The outermost floating button wrapper Google injects into <body> */
-      body > .skiptranslate:not(#google_translate_element),
-      /* Any fixed/absolute element Google injects that wraps the icon */
+      /* Obfuscated class Google uses for the floating "G" icon bubble.
+         Use div/span qualifiers — NEVER target iframe.VIpgJd-* because those
+         are the off-screen worker iframes that perform the actual translation. */
+      div[class*="VIpgJd-"],
+      span[class*="VIpgJd-"],
+      /* The outermost floating button wrapper Google injects into <body>.
+         Scoped to div/span only — iframes with skiptranslate are worker iframes
+         and must NOT be hidden or translation stops working entirely. */
+      body > div.skiptranslate:not(#google_translate_element),
+      body > span.skiptranslate:not(#google_translate_element),
+      /* Any fixed/absolute div element Google injects that wraps the icon */
       body > div[id^="goog-gt"] {
         display: none !important;
         visibility: hidden !important;
@@ -231,22 +237,31 @@
           // Pass 2: obfuscated VIpgJd-* elements (the floating "G" icon bubble)
           document.querySelectorAll('[class*="VIpgJd-"]').forEach(ensureHidden);
 
-          // Pass 3: any translate-related iframe that's pinned to the top of the viewport
+          // Pass 3: translate-related iframes pinned to the top of the viewport (banner).
+          // Worker iframes are position:absolute pushed to left:-10000px so they are
+          // never "at top of viewport" — this guard keeps them safe.
           document.querySelectorAll('iframe').forEach(function (iframe) {
             if (iframe.style.display === 'none') return; // already hidden
             if (!isTranslateRelated(iframe)) return;
-            if (isAtTopOfViewport(iframe)) ensureHidden(iframe);
+            if (isAtTopOfViewport(iframe)) ensureHidden(iframe); // only visible banner iframes
           });
 
-          // Pass 4: any direct body child (div/span wrapper) injected by Google
+          // Pass 4: any direct body child (div/span wrapper) injected by Google.
+          // IMPORTANT: skip iframes entirely — Google's worker iframes have the
+          // skiptranslate class and are direct body children, but they are the
+          // translation engine. Hiding them with display:none breaks translation.
+          // Worker iframes are off-screen (left:-10000px, position:absolute) so
+          // isAtTopOfViewport already wouldn't match them — but we skip tag=IFRAME
+          // unconditionally here to be safe.
           if (document.body) {
             for (var i = 0; i < document.body.children.length; i++) {
               var child = document.body.children[i];
               if (child.id === 'google_translate_element') continue;
               if (child.id === 'root') continue;
               if (child.tagName === 'SCRIPT') continue;
+              if (child.tagName === 'IFRAME') continue; // never hide — translation engine
               if (child.style && child.style.display === 'none') continue;
-              // Hide floating icon wrapper: skiptranslate divs that aren't our mount
+              // Hide floating icon wrapper: translate-related divs/spans only
               if (isTranslateRelated(child)) { ensureHidden(child); continue; }
               if (isAtTopOfViewport(child)) ensureHidden(child);
             }
