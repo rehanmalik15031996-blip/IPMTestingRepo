@@ -79,6 +79,27 @@ export function PreferencesProvider({ children }) {
     } catch (e) { /* ignore */ }
   }, []);
 
+  // On mount, if the stored language is non-English, trigger Google Translate so
+  // the body content (hardcoded JSX text not covered by i18n) is translated too.
+  // This is the fix for Vercel: on a fresh page load the header uses i18n correctly,
+  // but without this effect the body would stay in English because setLanguage() is
+  // only called on user interaction, never on initial render.
+  // We delay slightly so Google's widget has time to finish initialising first.
+  // If the widget isn't ready yet, __ipmApplyGoogleTranslate sets __ipmPendingLang
+  // (via the index.html early script) which googleTranslateElementInit then picks up.
+  useEffect(() => {
+    const storedLang = prefs.language || 'en';
+    if (storedLang === 'en') return;
+    const apply = () => {
+      if (typeof window !== 'undefined' && typeof window.__ipmApplyGoogleTranslate === 'function') {
+        window.__ipmApplyGoogleTranslate(storedLang);
+      }
+    };
+    // Small delay gives Google's async script time to initialise before we call it.
+    const t = setTimeout(apply, 800);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));

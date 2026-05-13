@@ -89,7 +89,11 @@
 
     <!-- Set <html lang> from stored preference at the earliest possible moment so Chrome's
          built-in translation feature doesn't detect a "foreign" page and pop up its own
-         translate prompt (separate from our Google Translate widget). -->
+         translate prompt (separate from our Google Translate widget).
+         Also pre-fills __ipmPendingLang so that as soon as googleTranslateElementInit
+         fires (Google script loaded), it immediately translates to the stored language
+         without waiting for the user to interact with the picker. This is what makes
+         the body content translate on Vercel page load (not just the header via i18n). -->
     <script>
       (function () {
         try {
@@ -100,6 +104,11 @@
             document.documentElement.lang = p.language;
             var RTL = { ar: 1, he: 1, ur: 1, fa: 1 };
             if (RTL[p.language]) document.documentElement.dir = 'rtl';
+            // Queue the stored language for Google Translate so the body translates
+            // automatically on page load — not only when the user clicks the picker.
+            if (p.language !== 'en') {
+              window.__ipmPendingLang = p.language;
+            }
           }
         } catch (_) {}
       })();
