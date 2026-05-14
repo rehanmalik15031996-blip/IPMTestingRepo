@@ -12,7 +12,7 @@ function getStoredLanguage() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.language) return parsed.language;
+      if (parsed.language && parsed.languageExplicitlySet) return parsed.language;
     }
   } catch (e) { /* ignore */ }
   return 'en';

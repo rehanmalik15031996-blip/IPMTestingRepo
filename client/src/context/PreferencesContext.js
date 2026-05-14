@@ -52,6 +52,11 @@ export function PreferencesProvider({ children }) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        // Only restore a non-English language if the user explicitly chose it.
+        // Without this flag (e.g. old sessions or fresh installs) always default to English.
+        if (!parsed.languageExplicitlySet) {
+          parsed.language = defaultPrefs.language;
+        }
         return { ...defaultPrefs, ...parsed };
       }
       const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -125,7 +130,7 @@ export function PreferencesProvider({ children }) {
   }, []);
 
   const setLanguage = useCallback((lang) => {
-    setPrefsState((p) => ({ ...p, language: lang }));
+    setPrefsState((p) => ({ ...p, language: lang, languageExplicitlySet: true }));
     i18n.changeLanguage(lang);
     if (typeof document !== 'undefined') {
       document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';

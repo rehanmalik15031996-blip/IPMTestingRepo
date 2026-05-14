@@ -100,7 +100,10 @@
           var raw = localStorage.getItem('ipm_user_preferences');
           if (!raw) return;
           var p = JSON.parse(raw);
-          if (p && p.language) {
+          // Only restore a non-English language if the user explicitly chose it.
+          // Without the flag (old sessions / fresh installs) default to English so
+          // the browser never detects a "foreign" page and pops up its translate bar.
+          if (p && p.language && p.languageExplicitlySet) {
             document.documentElement.lang = p.language;
             var RTL = { ar: 1, he: 1, ur: 1, fa: 1 };
             if (RTL[p.language]) document.documentElement.dir = 'rtl';
