@@ -120,8 +120,15 @@
             if (RTL[p.language]) document.documentElement.dir = 'rtl';
             // Remove notranslate so Google Translate is allowed to run
             document.documentElement.classList.remove('notranslate');
-            // Queue the stored language for Google Translate so the body translates
-            // automatically on page load — not only when the user clicks the picker.
+            // Set the googtrans cookie DIRECTLY here — before Google's script even
+            // loads — so it auto-translates the moment the widget initialises.
+            // This is the most reliable approach on Vercel (no widget polling needed).
+            var GMAP = { zh: 'zh-CN', en: 'en', es: 'es', fr: 'fr', ar: 'ar', de: 'de', nl: 'nl', pt: 'pt', it: 'it', ja: 'ja', tr: 'tr', ru: 'ru', hi: 'hi' };
+            var gLang = GMAP[p.language] || p.language;
+            var gh = location.hostname;
+            document.cookie = 'googtrans=/en/' + gLang + '; path=/;';
+            document.cookie = 'googtrans=/en/' + gLang + '; path=/; domain=' + gh + ';';
+            // Also queue via __ipmPendingLang as a secondary trigger
             window.__ipmPendingLang = p.language;
           } else {
             // English default path: block Google Translate from auto-translating
