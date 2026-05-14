@@ -182,13 +182,19 @@ export function PreferencesProvider({ children }) {
 
   const lang = prefs.language || 'en';
 
-  // Apply RTL direction on every language change (incl. first mount).
-  // The Google Translate cookie set in setLanguage drives all DOM translation on subsequent
-  // page loads via Google's TranslateElement, so no extra trigger is needed here.
+  // Apply RTL direction and notranslate class on every language change (incl. first mount).
+  // notranslate on <html> blocks Google Translate's MutationObserver from re-translating
+  // newly-mounted React nodes. It must be present whenever language is English so that
+  // stale googtrans cookies from previous sessions don't cause auto-translation on Vercel.
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.dir = RTL_LANGS.has(lang) ? 'rtl' : 'ltr';
       document.documentElement.lang = lang;
+      if (lang === 'en') {
+        document.documentElement.classList.add('notranslate');
+      } else {
+        document.documentElement.classList.remove('notranslate');
+      }
     }
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -97,21 +97,37 @@
     <script>
       (function () {
         try {
+          // Clear any stale googtrans cookie early (before Google Translate script loads)
+          // so a leftover cookie from a previous session never auto-translates the page.
+          // We re-set it below only when the user has an explicit non-English preference.
+          function clearCookieEarly() {
+            var h = location.hostname;
+            ['/',''].forEach(function(pa) {
+              ['', '; domain=' + h, '; domain=.' + h].forEach(function(d) {
+                document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=' + pa + d + ';';
+              });
+            });
+          }
+
           var raw = localStorage.getItem('ipm_user_preferences');
-          if (!raw) return;
-          var p = JSON.parse(raw);
+          var p = raw ? JSON.parse(raw) : null;
+
           // Only restore a non-English language if the user explicitly chose it.
-          // Without the flag (old sessions / fresh installs) default to English so
-          // the browser never detects a "foreign" page and pops up its translate bar.
-          if (p && p.language && p.languageExplicitlySet) {
+          // Without the flag (old sessions / fresh installs) default to English.
+          if (p && p.language && p.languageExplicitlySet && p.language !== 'en') {
             document.documentElement.lang = p.language;
             var RTL = { ar: 1, he: 1, ur: 1, fa: 1 };
             if (RTL[p.language]) document.documentElement.dir = 'rtl';
+            // Remove notranslate so Google Translate is allowed to run
+            document.documentElement.classList.remove('notranslate');
             // Queue the stored language for Google Translate so the body translates
             // automatically on page load — not only when the user clicks the picker.
-            if (p.language !== 'en') {
-              window.__ipmPendingLang = p.language;
-            }
+            window.__ipmPendingLang = p.language;
+          } else {
+            // English default path: block Google Translate from auto-translating
+            // and wipe any stale googtrans cookie from a previous session.
+            document.documentElement.classList.add('notranslate');
+            clearCookieEarly();
           }
         } catch (_) {}
       })();
