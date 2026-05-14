@@ -5,6 +5,10 @@
     <link rel="icon" href="%PUBLIC_URL%/logo-white.png" type="image/png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+    <!-- Suppress Chrome/Edge built-in translate bar. The browser detects non-English
+         content after Google Translate runs and offers to "translate" it again, which
+         is confusing. Our own language picker handles all translation. -->
+    <meta name="google" content="notranslate" />
 
     <!--
       Cross-origin error filter. Must be the FIRST script so its capture-phase
