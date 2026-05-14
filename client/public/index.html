@@ -154,10 +154,12 @@
       .goog-tooltip,
       .goog-tooltip:hover,
       /* Obfuscated class Google uses for the floating "G" icon bubble.
-         Use div/span qualifiers — NEVER target iframe.VIpgJd-* because those
-         are the off-screen worker iframes that perform the actual translation. */
-      div[class*="VIpgJd-"],
-      span[class*="VIpgJd-"],
+         Scoped to DIRECT body children only — Google Translate wraps translated
+         text in <font class="VIpgJd-..."> elements INSIDE the page content tree;
+         a broader selector would hide those and make translated text disappear on click.
+         NEVER target iframe.VIpgJd-* — those are off-screen worker iframes. */
+      body > div[class*="VIpgJd-"],
+      body > span[class*="VIpgJd-"],
       /* The outermost floating button wrapper Google injects into <body>.
          Scoped to div/span only — iframes with skiptranslate are worker iframes
          and must NOT be hidden or translation stops working entirely. */
@@ -253,8 +255,19 @@
             '.goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-balloon-frame, #goog-gt-tt, .goog-te-gadget'
           ).forEach(ensureHidden);
 
-          // Pass 2: obfuscated VIpgJd-* elements (the floating "G" icon bubble)
-          document.querySelectorAll('[class*="VIpgJd-"]').forEach(ensureHidden);
+          // Pass 2: obfuscated VIpgJd-* elements (the floating "G" icon bubble).
+          // Scoped to DIRECT body children — Google Translate wraps translated text
+          // in <font class="VIpgJd-..."> nodes deep inside the content tree. A broad
+          // querySelectorAll('[class*="VIpgJd-"]') would hide those on every DOM
+          // mutation, making translated text vanish whenever the user clicks anything.
+          if (document.body) {
+            Array.prototype.forEach.call(document.body.children, function (el) {
+              if (el.tagName !== 'DIV' && el.tagName !== 'SPAN') return;
+              for (var ci = 0; ci < el.classList.length; ci++) {
+                if (el.classList[ci].indexOf('VIpgJd-') === 0) { ensureHidden(el); return; }
+              }
+            });
+          }
 
           // Pass 3: translate-related iframes pinned to the top of the viewport (banner).
           // Worker iframes are position:absolute pushed to left:-10000px so they are
