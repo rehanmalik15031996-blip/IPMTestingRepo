@@ -493,7 +493,28 @@
         tryTranslate(25);
       };
     </script>
-    <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async data-ipm-gt-loader="1"></script>
+    <!-- Google Translate script is loaded CONDITIONALLY — only when the user has
+         an explicit non-English language stored. Loading it unconditionally causes
+         Chrome to show a "Third-party cookies allowed" popup on every page load
+         because Google's translation iframes request cookie access from
+         translate.googleapis.com. English users (the default) never need it. -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('ipm_user_preferences');
+          if (raw) {
+            var p = JSON.parse(raw);
+            if (p && p.languageExplicitlySet && p.language && p.language !== 'en') {
+              var s = document.createElement('script');
+              s.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+              s.async = true;
+              s.setAttribute('data-ipm-gt-loader', '1');
+              document.head.appendChild(s);
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
